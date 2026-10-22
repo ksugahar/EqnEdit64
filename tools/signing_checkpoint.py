@@ -43,7 +43,25 @@ def payload(data, unsigned_size=None):
         n, revision, kind = struct.unpack_from("<IHH", data, offset)
         need(n >= 8 and revision == 0x200 and kind == 2)
         need(offset + ((n + 7) // 8) * 8 == len(data))
-        need(not any(data[offset + n:]))
+        # Bound the PKCS#7 DER object itself, not only its outer certificate entry.
+        start = offset + 8
+        need(start + 2 <= len(data) and data[start] == 0x30)
+        first = data[start + 1]
+        if first < 0x80:
+            header, body = 2, first
+        else:
+            count = first & 0x7f
+            need(1 <= count <= 4 and start + 2 + count <= len(data))
+            encoded = data[start + 2:start + 2 + count]
+            need(encoded[0] != 0)
+            body = int.from_bytes(encoded, "big")
+            need(body >= 0x80)
+            header = 2 + count
+        der_total = header + body
+        expected = 8 + der_total
+        need(n in (expected, ((expected + 7) // 8) * 8))
+        need(start + der_total <= len(data))
+        need(not any(data[start + der_total:]))
         end = unsigned_size
     clean = bytearray(data[:end])
     need(security + 8 <= len(clean))

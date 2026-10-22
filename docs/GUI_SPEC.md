@@ -28,7 +28,7 @@ Eqnedit64は、軽快な数式入力を、標準のUTF-8 TeXへ直結する
 - Google スライド用コピーは300 dpi画像を24 pt基準の物理寸法で貼れること。
 - 配布物は `Eqnedit64.exe` 1ファイルだけとする。
 - 配布exeは署名者 `ksugahar` の有効な
-  Authenticode開発者署名を持つこと。
+  Authenticode開発者署名を持つこと（`accept_release.ps1` の Signed phaseで検査）。
 
 ### 1.2 非目標
 
@@ -511,7 +511,7 @@ Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 | AUT-05 | 5分類タブ＋選択分類のパレット、キャンバス、常時表示のTeXソース、ステータスが重ならず、全19パレットが一意に分類され、DPI対応する | `test_palettes.py` / `--status-layout-test` |
 | AUT-06 | `WM_CHAR`、サロゲートペア、キー、構造スロットのダブルクリック選択に加え、完成／未完成TeX、双方向同期、1編集バースト1 Undo、両ペインの直接クリック編集、キャンバス上でTeXコマンドを解釈しないことを非表示で処理できる | `--ui-interaction-test` |
 | AUT-07 | raw TeX、条件付き OMML の HTML Format、有効EMF、不透明DIBV5を保持。登録MathMLは発行しない | `test_office_bit_parity.cjs --wire` / `--self-test` |
-| AUT-08 | `dist` は有効な指定開発者署名を持つexe一つで、試験済みexeと同一、静的ランタイム、別ディレクトリ起動可 | `test_background.ps1` |
+| AUT-08 | `dist` は有効な指定開発者署名を持つexe一つで、試験済みexeと同一、静的ランタイム、別ディレクトリ起動可 | `accept_release.ps1` の Signed phase / `test_background.ps1`（署名以外） |
 | AUT-09 | `.tex`保存は新規 `equation`、既存 `equation*` 外枠維持、`aligned`、UTF-8の契約を満たす | `test_tex_document.exe` / `--operation-test` |
 | AUT-10 | 単一式・複数行とも条件付き OMML の CF_HTML を主形式とする。raw TeX・EMF・DIBV5も保持 | `test_external_paste.ps1` |
 | AUT-11 | 実PowerPoint UI Pasteで編集可能な上下限を必須とし、単一式の中央寄せを許容する。複数行試験は必須。Webとの描画一致は未検証 | `test_external_paste.ps1` / 隔離Office試験 |

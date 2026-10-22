@@ -29,3 +29,10 @@ publishes, stages a deployment copy or creates a tag.
 Acceptance of actual Office clipboard paste and published package artifacts
 remains a separate release requirement. Never overlap Office testing with a
 user's active Office session or manipulate the user's mouse or keyboard.
+
+The certificate entry must contain exactly one bounded DER SEQUENCE followed
+only by zero alignment padding. Extra bytes outside that DER object fail even
+when Authenticode would otherwise report a valid signature. PKCS#7 attributes
+inside the DER object are not parsed by this comparison. The signed report's
+`signed_sha256` fixes the complete shipping bytes, including the signature;
+subsequent staging and publication must match that exact hash.

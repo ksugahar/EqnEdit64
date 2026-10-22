@@ -29,7 +29,7 @@ def signed(data):
     offset = len(result)
     struct.pack_into("<I", result, 152, 1234)  # PE checksum legitimately changes.
     struct.pack_into("<II", result, 232, offset, 16)
-    result.extend(struct.pack("<IHH", 16, 0x200, 2) + b"testcert")
+    result.extend(struct.pack("<IHH", 16, 0x200, 2) + b"\x30\x06ABCDEF")
     return bytes(result)
 
 
@@ -114,3 +114,39 @@ def test_nonstandard_gate_settings_fail_before_session_or_build(tmp_path, settin
     assert result.returncode != 0
     assert "Release gate requires" in result.stdout + result.stderr
     assert not (tmp_path / "checkpoint.json").exists()
+
+
+def test_extended_certificate_entry_cannot_hide_nonzero_bytes(tmp_path):
+    exe, report, saved = inputs(tmp_path)
+    data = bytearray(exe.read_bytes())
+    offset, length = struct.unpack_from("<II", data, 232)
+    data.extend(b"hidden payload!!")
+    struct.pack_into("<I", data, offset, length + 16)
+    struct.pack_into("<II", data, 232, offset, length + 16)
+    exe.write_bytes(data)
+    with pytest.raises(ValueError): mod.verify("a" * 40, exe, report, saved)
+
+
+@pytest.mark.parametrize("padded_length", [False, True])
+def test_der_long_length_and_zero_certificate_padding(tmp_path, padded_length):
+    exe, report, saved = inputs(tmp_path)
+    raw = unsigned()
+    data = bytearray(signed(raw)[:520])
+    der = b"\x30\x81\x80" + bytes(128)
+    n = 8 + len(der)
+    aligned = (n + 7) // 8 * 8
+    data.extend(struct.pack("<IHH", aligned if padded_length else n, 0x200, 2) + der + bytes(aligned - n))
+    struct.pack_into("<II", data, 232, 520, aligned)
+    exe.write_bytes(data)
+    assert mod.verify("a" * 40, exe, report, saved)["payload_matches"]
+
+
+@pytest.mark.parametrize("der", [b"\x31\x00", b"\x30\x80", b"\x30\x81\x01x", b"\x30\x82\x00\x80", b"\x30\x84\xff\xff\xff\xff"])
+def test_invalid_der_length_fails(tmp_path, der):
+    exe, report, saved = inputs(tmp_path)
+    data = bytearray(signed(unsigned())[:520])
+    n = 8 + len(der); aligned = (n + 7) // 8 * 8
+    data.extend(struct.pack("<IHH", aligned, 0x200, 2) + der + bytes(aligned - n))
+    struct.pack_into("<II", data, 232, 520, aligned)
+    exe.write_bytes(data)
+    with pytest.raises(ValueError): mod.verify("a" * 40, exe, report, saved)
