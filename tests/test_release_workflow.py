@@ -56,6 +56,10 @@ def test_all_publication_comparisons_precede_pypi_upload():
     preflight = next(i for i, s in enumerate(steps) if s.get("id") == "draft")
     pypi = next(i for i, s in enumerate(steps) if s.get("uses", "").startswith("pypa/gh-action-pypi-publish@"))
     assert preflight < pypi
+    checkout = next(i for i, s in enumerate(steps) if s.get("uses", "").startswith("actions/checkout@"))
+    downloads = [i for i, s in enumerate(steps) if s.get("uses", "").startswith("actions/download-artifact@")]
+    assert downloads and checkout < min(downloads), "Checkout must not clean already downloaded artifacts"
+
     assert "verify_draft_assets.py" in steps[preflight]["run"]
     assert not steps[preflight].get("if")
     assert re.fullmatch(r"pypa/gh-action-pypi-publish@[0-9a-f]{40}", steps[pypi]["uses"])
