@@ -6,8 +6,7 @@
 
 この文書は、Eqnedit64の画面、操作、状態遷移、ファイル、クリップボード、
 受入試験の基準仕様である。キー割当の完全な一覧は
-[`SHORTCUTS.md`](SHORTCUTS.md)、手動確認手順は
-`operation logging interface` (separate operational guide) を正とする。Web/JS版との
+[`SHORTCUTS.md`](SHORTCUTS.md) を正とする。Web/JS版との
 共通中核と固有機能の境界は [`PRODUCT_PARITY.md`](PRODUCT_PARITY.md) を正とする。
 
 ## 1. 製品目的

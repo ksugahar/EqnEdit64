@@ -19,6 +19,9 @@ def findings(name, data):
     texts = [name, data.decode("utf-8", errors="ignore")]
     if b"\0" in data:
         texts += [data.decode(enc, errors="ignore") for enc in ("utf-16-le", "utf-16-be")]
+    # Content-addressed workflow dependencies are public provenance, not certificate IDs.
+    action = re.compile(r"(?m)^(\s*(?:-\s*)?uses:\s*['\"]?[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@)[0-9a-f]{40}(['\"]?\s*(?:#.*)?)$")
+    texts = [action.sub(r"\1<revision>\2", text) for text in texts]
     for category, pattern in PATTERNS.items():
         if any(pattern.search(text) for text in texts): result.append(category)
     return result
