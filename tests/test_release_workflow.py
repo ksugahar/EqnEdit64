@@ -14,6 +14,23 @@ ROOT = Path(__file__).resolve().parents[1]
 def workflow(name):
     return yaml.safe_load((ROOT / ".github/workflows" / name).read_text("utf-8"))
 
+@pytest.mark.parametrize("name", ["eqnedit64.yml", "release-eqnedit64-pypi.yml"])
+def test_workflow_has_literal_event_trigger(name):
+    # BaseLoader preserves keys instead of interpreting YAML 1.1 booleans.
+    data = yaml.load((ROOT / ".github/workflows" / name).read_text("utf-8"), Loader=yaml.BaseLoader)
+    assert "on" in data, f"{name}: GitHub requires a literal on event key"
+    assert "true" not in data and "false" not in data
+    assert isinstance(data["on"], dict) and data["on"]
+
+
+def test_privileged_release_checkouts_do_not_persist_credentials():
+    data = workflow("release-eqnedit64-pypi.yml")
+    for name in ("signed-standalone", "publish"):
+        checkouts = [step for step in data["jobs"][name]["steps"]
+                     if step.get("uses", "").startswith("actions/checkout@")]
+        assert checkouts and all(step["with"]["persist-credentials"] is False for step in checkouts)
+
+
 def premature_guards(script):
     """Reject guards before any native command in a fresh PowerShell process."""
     native = re.compile(r"^\s*(?:&\s+|(?:python[0-9]?|dotnet|cmake|ctest|cmd(?:[.]exe)?|node|npm|npx|pwsh|gh|cl|rc)(?:\s|$))", re.I)

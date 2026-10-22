@@ -1,5 +1,5 @@
 name: Release Eqnedit64 to PyPI
-true:
+'on':
   workflow_run:
     workflows:
     - Eqnedit64
@@ -61,6 +61,7 @@ jobs:
             output.write(f"tag={tag if eligible else ''}\n")
         print(f"Eqnedit64 CI ref: {ref} (eligible={eligible})")
         PY
+  # Signed assets are staged separately; this hosted job only verifies them
   signed-standalone:
     needs: qualify
     if: needs.qualify.outputs.eligible == 'true'
@@ -70,6 +71,7 @@ jobs:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       with:
         ref: ${{ needs.qualify.outputs.sha }}
+        persist-credentials: false
     - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
       with:
         python-version: '3.12'
@@ -276,6 +278,7 @@ jobs:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       with:
         ref: ${{ needs.qualify.outputs.sha }}
+        persist-credentials: false
     - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
       with:
         python-version: '3.12'
@@ -294,8 +297,9 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         EQNEDIT64_TAG: ${{ needs.qualify.outputs.tag }}
         EQNEDIT64_SHA: ${{ needs.qualify.outputs.sha }}
-      run: python tools/verify_draft_assets.py --repo "$GITHUB_REPOSITORY" --tag "$EQNEDIT64_TAG" --source-sha "$EQNEDIT64_SHA"
-        --artifact-dir standalone --output "$GITHUB_OUTPUT"
+      run: |
+        python tools/verify_draft_assets.py --repo "$GITHUB_REPOSITORY" --tag "$EQNEDIT64_TAG" --source-sha "$EQNEDIT64_SHA" \
+          --artifact-dir standalone --output "$GITHUB_OUTPUT"
     - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
       with:
         packages-dir: dist/
