@@ -1,0 +1,191 @@
+# Eqnedit product parity policy
+
+## Native rendering acceptance
+
+Every supported decoration must render its own mathematical shape, not merely
+nonempty ink. A valid TeX/MathML result does not certify the native canvas.
+Keep the decoration pairwise comparisons and complete palette sweep, including
+styled selection and script fragments with explicit bases.
+
+Native `Node::Tag` dispatch must contain an explicit case for every enumerator
+and no default. `SizeNode` is consumed as list state; reaching scalar dispatch
+is a logic error. The unused legacy `FontNode` and `RMNode` are unsupported and
+must throw a named error, never produce an empty layout. New tags require an
+explicit layout decision under MSVC `/W4 /WX /w14062` in release and CMake CI.
+The old generic layout fallback is forbidden. Static coverage and C++ runtime
+rejection tests protect separate failure modes.
+
+## Palette key acceptance
+
+A key is a promise about what pressing it produces, so the face is part of the
+contract and not decoration. Two rules hold, both checked from the source and
+the shipped font rather than from a rendered window.
+
+A symbol key must draw the character its command inserts. `\star` renders as
+U+22C6, so a key for it may not show U+2605; `\frown` and `\smile` are U+2322
+and U+2323, not the intersection and union signs. A face may be a word only
+where the inserted character has no standalone shape, such as the combining
+overlay behind `\not`.
+
+Every face character must be in the embedded Eqnedit Math cmap.
+`pick_button_font` gathers all faces into one sample and accepts a font only if
+it owns the whole sample, so an unavailable character does not blank its own
+key — it rejects the math font and redraws every palette in a fallback. That
+all-or-nothing gate stays; the sample is what must be kept clean.
+
+The cmap check predicts that choice. `--self-test` observes it: it runs the
+production chooser, reads back the physical face, and exits 243 naming the
+substitute when the palette is not drawing in Eqnedit Math. Keep both —
+the static check says which character is at fault, the runtime check says
+whether the shipped binary actually got the font.
+
+These are native-specific implementation checks. Web rendering belongs to
+MathJax; shared palette/TeX/Office contracts still require both editions' tests.
+Publish the matching Web build on the laboratory homepage, even when the only
+Web source change is release identification. Do not claim public completion
+from a successful binary upload or from the browser tests alone.
+
+Eqnedit64.exe と Web/JS 数式エディタは、このリポジトリで一緒に
+保守する同一製品系列である。研究室ホームページは Web 版の公開先であり、正本では
+ない。TeX を正本とし、次の優先順位を守る。
+
+## 製品価値の優先順位
+
+1. **MathML 経由の Office ネイティブ数式貼り付け**
+   - Word / PowerPoint へ、目に見え、編集できる Office Math として貼り付くこと。
+   - MathML・MathZone・XMLの存在だけでは合格にしない。Office自身の描画結果が
+     非空で、分数・根号などの代表構造を保持することをAPI試験で確認する。
+2. **GUI と TeX ソースの二刀流入力**
+   - パレット／構造GUIから入り、同時に標準TeXの綴りを確認できること。
+   - 挿入直後のTeXだけを強調し、説明文の暗記を要求しない。
+   - GUIとTeXソースのどちらでも `Tab` / `Shift+Tab` により次／前の空欄へ
+     移動でき、同じ手癖で式を埋められること。
+3. **Eqnedit64 の高速構造入力**
+   - 既存の構造入力ショートカットを基本層として維持し、削除・変更しない。
+   - 基本ショートカットを削除・変更しない。追加ショートカットは拡張層として区別し、
+     実キー経路をバックグラウンド試験する。
+
+## 機能区分
+
+| 機能 | Eqnedit64.exe | Web/JS | 区分 |
+|---|---|---|---|
+| TeXを唯一の正本とする | 必須 | 必須 | 共通中核 |
+| MathML経由で編集可能なOffice数式へ貼り付け | inline 18 pt MathML + 18 pt NBSPのCF_HTML | 同じinline 18 pt MathML + 18 pt NBSPのCF_HTML | 共通中核 |
+| 画像を混在させないOffice専用コピー | 必須 | 必須 | 共通中核 |
+| パレットとTeXソースの対応 | 必須 | 必須 | 共通学習面 |
+| 常設書体 `\mathrm` / `\mathit` / `\mathbf` | 選択変更・継続入力 | 選択を包む・空欄挿入 | 共通学習面 |
+| 追加書体 `\mathsf` / `\mathtt` / `\mathcal` / `\mathbb` / `\mathfrak` / `\bm` | 装飾パレット・TeX・保存・MathML | 装飾パレット・MathJax | `\boldsymbol` は `\bm` の入力別名 |
+| 挿入直後のTeX強調 | ソース内の非アクティブ選択 | キャレットを動かさない強調表示 | 共通学習面 |
+| TeXソース文字の可読性 | 物理face・cmap・実inkを検査しstock GUI fontへ退避 | 共有CSS変数によるCJK対応monospace fallback | 共通学習面 |
+| `Tab` / `Shift+Tab`で空欄移動 | 構造GUI・TeXソース | TeXソース | 共通学習面 |
+| `Enter`の構造的行区切り・`Shift+Enter`のソース改行 | 構造キャンバス・TeXソース | TeXソース | 共通学習面 |
+| 挿入テンプレートの整形（`\begin`後・`\end`前・`\\`後で改行し、環境深さで字下げ） | 構造モデルの正規化TeX | 挿入断片へ同じ規則を適用 | 共通学習面 |
+| 挿入・行区切りの取り消し | 単一Undoへまとめる | ブラウザのUndo履歴（`Ctrl+Z`）を壊さない | 共通学習面 |
+| 論文TeXの意味保全 | native parserで標準環境・コメント・メタ命令を正規化 | MathJaxの標準TeX解釈へ委譲 | `~`を`\sim`にせず、`align`の`&`を失わず、命令名を本文にしない |
+| 構造キャンバス編集 | 必須 | 非該当 | native固有 |
+| 構造入力ショートカット | 基本層として必須 | 非該当 | native固有 |
+| インストール不要のブラウザ利用 | 非該当 | 必須 | Web固有 |
+
+両版は条件付き RichEdit-HTML OMML の CF_HTML を Office 向け主形式とする。
+登録 `MathML` / `MathML Presentation` は発行しない。明示 `&` と保存TeXを保持する。
+画像への退化、空のMathZone、上下限の欠落は合格としない。
+
+論文からのTeX入力では、両版とも裸の`~`を非改行空白、U+223Cを`\sim`として区別し、
+`align` / `align*`の`&`列を保持する。`%`コメント、`\label`、`\nonumber`、`\notag`、
+`\tag`を可視数式へ変えない。nativeは未知control wordを無視して後続引数を編集可能に残し、
+Web/MathJaxは未対応命令を変換エラーとして通知してよいが、どちらも命令名を通常文字として
+数式へ捏造してはならない。この差は構造編集を継続できるnativeと、完全TeX parserを持つ
+MathJaxの境界による。
+native parserの固定点、optional引数の停止条件、Undo用再parseはnative構造編集固有の
+実装責任であり、MathJaxへTeX解釈を委譲するWeb版へC++ parserを移植しない。逆に、
+Web版のソース文字はブラウザのfont fallbackへ委ねるため、Win32のGDI font検査を
+JavaScriptへ再実装しない。ソース欄と直前挿入表示は一つのCJK対応font stackを共有し、
+特定のローカルfont一つだけを前提にしない。
+TeXソース欄の`Enter`は両版とも数式の行区切り`\\`であり、単なる空白改行ではない。
+新しい行は直前の行の整列列を保ち（先頭に`&`）、`\frac`、上下付き、`\text`、入れ子環境の
+途中では群を分割せず、現在の行の後ろへ空の行を開く。行環境がまだ無い入力は`aligned`で
+包む。ソースだけを改行する場合は両版とも`Shift+Enter`を使う。Web版はさらに、日本語入力の
+確定`Enter`（`isComposing` / key code 229）をIMEへ渡し、数式の行区切りにしない。
+挿入テンプレートのセルは`{}`とし、`Tab`が全セルへ到達できることを両版の条件とする。
+Web版の挿入・行区切りはブラウザの編集コマンド経由で適用し、`textarea.value`の代入で
+Undo履歴を捨てない。ブラウザのUndo履歴はnativeのUndoスタックに対応する共通学習面である。
+
+両版とも`\text{hello world}`と`\operatorname{arg max}`の単語間空白を表示・保存し、
+escaped percentを含む文章でも空白を脱落させない。nativeは構造木へ取り込む際に連続する
+source空白を一つの単語間空白へ正規化するが、`~`、`\ `、`\,`の明示空白は区別して保持する。
+
+PowerPointの通常貼り付け受入試験は、画面外の一時プレゼンテーションに対して
+`Application.CommandBars.ExecuteMso("Paste")`を実行する。`Shapes.Paste()`は
+異なるオブジェクトモデル経路で24 ptを保持するため、Ctrl+Vの代用にしない。
+
+## 変更規則
+
+- 共通中核・共通学習面を変更する作業は、同じ作業内で両実装を確認し、適用可能なら
+  両方を変更する。片方へ適用しない場合は、この表へプラットフォーム上の理由を記す。
+- 両実装が同じコードである必要はない。入力キャレット、ブラウザ権限、Windows
+  クリップボード形式などを壊さず、同じ利用者結果を満たす実装を選ぶ。
+- native変更では `build/test_background.ps1` と該当する外部貼り付け試験を、Web変更では
+  `tests/test_web_contract.py` と研究室ホームページ側のブラウザQAを実行する。Office
+  貼り付け変更は両方とも実Office APIによる可視描画試験を省略しない。
+- Web版の正本は `web/equation-editor.js` と
+  `web/equation-editor.fragment.html`。ホームページへ置いたコピーを直接改変しない。
+- native変換器の公開境界はPythonを介さない
+  `Eqnedit64.exe INPUT OUTPUT`である。CLI dispatchをpybind11へ複製しない。Python
+  packageのlauncherや補助関数は必要に応じて同じEXEをsubprocess実行する薄い利用者であり、
+  CLIの正本ではない。Web版にnative CLIを移植しない。
+- 仕様、実装、自動試験を同じ変更で更新する。引き継ぎメモだけを規範にしない。
+# Palette semantic acceptance
+
+Every offered key must pass the independent [palette intent contract](PALETTE_INTENT.md)
+and its checked expectations in `palette_intent.json`. Catalogue completeness,
+distinct drawings and TeX round trips alone do not establish the intended meaning.
+Native and Web insertions are checked separately; an unreviewed key fails closed.
+
+## Web first-copy readiness
+
+The Web Office-copy button stays disabled with a preparation explanation until
+the primary CHTML typesetter, followed by the MathML converter, has initialized
+bold-symbol and cancellation macros. Verify synchronous conversion before
+enabling copy. Initialization failure leaves copy disabled with a reload
+explanation; it must not masquerade as successful readiness. Defer the initial
+expression render until readiness too. Palette preview rendering follows this
+preparation but must not delay enabling Office copy.
+
+Keep clipboard writing synchronous inside the user gesture. This readiness
+change does not alter the inline MathML payload, 18 pt convention, or native
+clipboard path. The cold-browser test delays the cancellation package and holds
+all palette previews, checks the disabled state, then captures the actual copy
+event before any preview completes. The first payload must contain bold-italic
+and cancellation markup, without MathJax errors. It does not modify the user's
+system clipboard. Website hand testing remains required before publication.
+
+
+## Shared Office clipboard contract
+
+Both editions publish conditional RichEdit-HTML OMML through CF_HTML as the primary
+Office format. Native copy also provides raw TeX, Office TeX, EMF and DIBV5.
+Registered MathML formats are not emitted as competing Office formats.
+
+The byte gate compares literal UTF-8 inside the conditional Office branch, excluding
+CF_HTML offsets, envelopes, SourceURL and non-Office fallback. It never normalizes the
+compared payload. Producers canonicalize named colours and merge adjacent equal-style
+runs before publication; text, namespace, scripts, colour, styles and rows remain checked.
+The current corpus declares 76 covered fixtures and 3 exclusions: boxed, cancel and binom.
+Unsupported native constructs are not counted as equivalent.
+
+The Windows wire gate reads actual native and browser clipboards, checks them against
+producer bytes, and rejects any mismatch or competing registered format. It uses headed
+full Chromium and independently verifies that browser writes reached Windows. Producer-only
+mode cannot qualify actual transport. Payload identity is not Office rendering acceptance.
+
+After actual wire qualification plus native Office acceptance on the same candidate,
+separate Web Office testing may be omitted only for covered fixtures. A changed transport
+contract or browser/clipboard/Office environment requires renewed Web qualification.
+PowerPoint may lose colour on conditional clipboard import; source/canvas/SVG/TeX/EMF/DIB
+colour is retained. This route does not claim PowerPoint colour retention.
+
+N-ary operand collection follows sibling scope: matched operand fences remain inside the
+operand; unmatched closing fences, enclosing bars and depth-zero additive/relation separators
+remain outside. Token classification uses known delimiters/operators rather than assuming
+all stretchy MathML attributes imply scalable Office structures. Nonzero spacing currently
+maps to one NBSP; byte equality does not certify faithful TeX spacing width.

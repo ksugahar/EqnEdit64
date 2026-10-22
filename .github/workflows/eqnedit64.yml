@@ -1,0 +1,305 @@
+name: Eqnedit64
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: eqnedit64-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install test dependencies
+      run: |
+        python -m pip install pytest fonttools pyyaml
+    - name: Check Eqnedit64 Web contract
+      run: |
+        python build/generate_palettes.py --check
+        python build/generate_office_alphabets.py --check
+        python -m pytest tests/test_web_contract.py tests/test_node_dispatch.py tests/test_version_contract.py tests/test_palette_faces.py tests/test_palette_intent.py tests/test_build_toolchain_contract.py tests/test_public_names.py -q
+    - name: Check shipped TrueType conversion without font registration
+      run: |
+        python tests/test_truetype_conversion.py
+    - name: Check Web JavaScript syntax and insertion behaviour
+      run: |
+        node --check web/equation-editor.js
+        node tests/test_web_insert.cjs
+        node tests/test_palette_intent.cjs
+    - name: Check real browser palette rendering
+      run: |
+        npm install --no-save --package-lock=false playwright@1.55.0 mathjax@3.2.2
+        npx playwright install --with-deps chromium
+        node tests/test_palette_browser.cjs
+    timeout-minutes: 25
+  build-test:
+    runs-on: windows-2022
+    env:
+      EQNEDIT64_ISOLATED_TEST_SESSION: '1'
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: .
+    steps:
+    - uses: actions/checkout@v4
+    - name: Record exact Eqnedit64 CI ref context
+      working-directory: .
+      run: |
+        $directory = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci-release-context'
+        New-Item -ItemType Directory -Path $directory | Out-Null
+        [ordered]@{
+          repository = $env:GITHUB_REPOSITORY
+          schema = 'eqnedit64.ci-release-context.v1'
+          ref = $env:GITHUB_REF
+          ref_type = $env:GITHUB_REF_TYPE
+          sha = $env:GITHUB_SHA
+          run_id = [string]$env:GITHUB_RUN_ID
+        } | ConvertTo-Json | Set-Content `
+          -LiteralPath (Join-Path $directory 'context.json') -Encoding utf8
+    - name: Upload exact Eqnedit64 CI ref context
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-ci-release-context
+        path: ${{ runner.temp }}/eqnedit64-ci-release-context/context.json
+        if-no-files-found: error
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install test build dependencies
+      run: |
+        python -m pip install pybind11 pytest python-pptx
+    - name: Verify named TrueType product candidate
+      run: |
+        python -m pip install pybind11==3.0.1 fonttools==4.60.1
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        python tests/test_truetype_conversion.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        python build/make_diagnostic_truetype.py assets/latinmodern-math.otf diagnostic-font.ttf --family-name 'Eqnedit Math'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $expected = 'E6A371A1E7BE3DFCE9F047580CF9888A00CBC4B94C723D746A341EC46145EE3B'
+        if ((Get-FileHash diagnostic-font.ttf -Algorithm SHA256).Hash -ne $expected -or (Get-FileHash assets/eqnedit-math.ttf -Algorithm SHA256).Hash -ne $expected) { throw 'Unexpected or non-reproducible product font.' }
+    - name: Configure native build
+      run: |
+        cmake -S . -B build_cmake -G "Visual Studio 17 2022" -T "v143,version=14.44.35207" -A x64
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        pwsh -NoProfile -File build/assert_msvc1944.ps1 -BuildDirectory build_cmake -ReportPath build_cmake/compiler-identity.json
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Build native targets
+      run: |
+        cmake --build build_cmake --config Release --parallel 2
+    - name: Test font observation failure modes without native execution
+      run: |
+        python -m pytest tests/test_font_session_observation.py -q
+    - name: Test RichEdit alignment oracle without Office execution
+      run: |
+        pwsh -NoProfile -File tests/test_rich_edit_alignment_contract.ps1
+    - name: Enable isolated font lifecycle diagnostics
+      run: |
+        $directory = Join-Path $env:RUNNER_TEMP 'eqnedit64-font-trace'
+        New-Item -ItemType Directory -Path $directory | Out-Null
+        "EQNEDIT64_FONT_TRACE_DIR=$directory" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    - name: Observe first executable font lifecycles
+      run: |
+        pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\Eqnedit64.exe -Iterations 32 -OutputPath font-session-first.json
+    - name: Build Eqnedit64 Python wheel candidate
+      working-directory: .
+      run: |
+        python -m pip install build
+        $env:EQNEDIT64_RELEASE_EXE = (Resolve-Path 'build_cmake\Release\Eqnedit64.exe').Path
+        python -m build --wheel python
+    - name: Verify installed Eqnedit64 wheel
+      working-directory: .
+      run: |
+        $wheel = Get-ChildItem 'python\dist\eqnedit64-*.whl' | Select-Object -First 1
+        python -m pip install --force-reinstall $wheel.FullName
+        python python\tests\verify_installed.py
+    - uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-wheel-candidate
+        path: python/dist/*.whl
+        if-no-files-found: error
+    - name: Run C++ document tests
+      run: |
+        ctest --test-dir build_cmake -C Release --output-on-failure
+    - name: Build headless model module
+      run: |
+        cmd.exe /d /c build\build_pymodule.bat
+    - name: Run model suites in one font-owning process
+      run: |
+        python tests\run_model_tests.py
+    - name: Run hidden executable checks
+      run: |
+        $app = Resolve-Path 'build_cmake\Release\Eqnedit64.exe'
+        $commands = @()
+        try {
+          foreach ($argument in @('--self-test', '--visual-scale-test', '--ui-interaction-test')) {
+            $started = (Get-Date).ToUniversalTime().ToString('o')
+            $process = Start-Process -FilePath $app -ArgumentList $argument -WindowStyle Hidden -Wait -PassThru
+            $commands += [ordered]@{
+              argument = $argument; pid = $process.Id; exit_code = $process.ExitCode
+              started_utc = $started; ended_utc = (Get-Date).ToUniversalTime().ToString('o')
+            }
+            if ($process.ExitCode -ne 0) { throw "Hidden check failed: $argument" }
+          }
+        } finally {
+          ConvertTo-Json -InputObject $commands -Depth 4 | Set-Content -LiteralPath `
+            (Join-Path $env:EQNEDIT64_FONT_TRACE_DIR 'hidden-commands.json') -Encoding utf8
+        }
+    - name: Render native palette review proofs
+      run: |
+        New-Item -ItemType Directory palette-proofs | Out-Null
+        & build_cmake\Release\test_palette_visual.exe palette-proofs > palette-proofs\cells.csv
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if (@(Get-ChildItem palette-proofs -Filter '*.png').Count -ne 120) {
+          throw 'Expected 19 palettes at 3 DPIs in normal and selected states'
+        }
+    - uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-palette-proofs
+        path: palette-proofs/
+        if-no-files-found: error
+    - name: Reject Windows session font-host damage
+      run: |
+        pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\Eqnedit64.exe -Iterations 32 -OutputPath font-session-after-suites.json
+    - name: Preserve font-host acceptance evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-font-session
+        path: font-session-*.json
+        if-no-files-found: warn
+    - name: Check public product boundary
+      run: |
+        python tests/check_public_names.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        python tests/check_pe_debug.py build_cmake/Release/Eqnedit64.exe
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Check command-line image artifacts
+      run: |
+        $app = Resolve-Path 'build_cmake\Release\Eqnedit64.exe'
+        $tex = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci.tex'
+        $png = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci.png'
+        $emf = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci.emf'
+        [IO.File]::WriteAllText($tex, '\[\frac{x_1+\alpha}{\sqrt{y}}\]', [Text.UTF8Encoding]::new($false))
+        & $app $tex $png
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        & $app $tex $emf
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if ((Get-Item $png).Length -le 8 -or (Get-Item $emf).Length -le 88) {
+          throw 'Eqnedit64 CLI produced an empty image artifact'
+        }
+        $signature = [IO.File]::ReadAllBytes($png)[0..7]
+        if ([Convert]::ToHexString($signature) -ne '89504E470D0A1A0A') {
+          throw 'Eqnedit64 CLI output is not PNG'
+        }
+    - name: Check redirectable command-line diagnostics
+      run: |
+        pwsh -NoProfile -File tests/test_cli_output.ps1 -AppPath build_cmake/Release/Eqnedit64.exe
+    - name: Validate native PowerPoint math fragments and schema
+      run: |
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        python tests/check_powerpoint_math.py --app build_cmake/Release/Eqnedit64.exe --probe build_cmake/Release/office_payload_probe.exe --output powerpoint-math-evidence
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        dotnet run --project tests/ooxml_schema/ooxml_schema.csproj -- tests/office_bit_corpus.json powerpoint-math-evidence
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Preserve native PowerPoint math evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-powerpoint-math
+        path: powerpoint-math-evidence/
+        if-no-files-found: error
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Require native Web Office clipboard bit identity
+      run: |
+        python build/generate_office_alphabets.py --check
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        npm install --no-save --package-lock=false playwright@1.55.0 mathjax@3.2.2
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        npx playwright install chromium
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        node tests/test_office_bit_parity.cjs build_cmake/Release/office_payload_probe.exe build_cmake/Release/Eqnedit64.exe --wire
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Preserve Office clipboard byte evidence
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-office-bit-parity
+        path: ${{ runner.temp }}/eqnedit64-office-bits-*/**
+        if-no-files-found: error
+    - name: Check font host after the final CLI workload
+      run: |
+        pwsh -NoProfile -File build/test_font_session.ps1 -AppPath build_cmake/Release/Eqnedit64.exe -Iterations 32 -OutputPath font-session-final.json
+    - name: Identify exact native candidate payload
+      run: |
+        $files = @('build_cmake/Release/Eqnedit64.exe', 'build/eqnedit_core.cp312-win_amd64.pyd', 'assets/eqnedit-math.ttf')
+        $records = @($files | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash $_ -Algorithm SHA256 -ErrorAction Stop).Hash} })
+        [ordered]@{source_sha=$env:GITHUB_SHA;diagnostic_only=$true;files=$records} | ConvertTo-Json -Depth 4 | Set-Content native-candidate-manifest.json -Encoding utf8
+    - name: Preserve final candidate evidence
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-corrected-font-candidate
+        retention-days: 1
+        path: |
+          font-session-*.json
+          native-candidate-manifest.json
+          diagnostic-font.json
+          build_cmake/Release/Eqnedit64.exe
+          build/eqnedit_core*.pyd
+          assets/GUST-FONT-LICENSE.txt
+          assets/THIRD_PARTY_NOTICES.md
+          assets/MANIFEST-eqnedit-math.txt
+          assets/eqnedit-math.ttf
+        if-no-files-found: warn
+    - name: Preserve isolated font lifecycle traces
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-font-trace
+        path: ${{ runner.temp }}/eqnedit64-font-trace/
+        if-no-files-found: warn
+    - name: Upload actual compiler identity
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: eqnedit64-msvc-build-test-${{ matrix.flavor || 'default' }}
+        path: build_cmake/compiler-identity.json
+        if-no-files-found: error
+    timeout-minutes: 120
+  source-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: python -m pip install pytest pyyaml
+    - run: python tools/ci_precheck.py --report "$RUNNER_TEMP/precheck.json"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: source-precheck
+        path: ${{ runner.temp }}/precheck.json
+        if-no-files-found: error
+'on':
+  push:
+    branches:
+    - main
+    tags:
+    - v*
+  pull_request:
+    branches:
+    - main
+  workflow_dispatch: {}
