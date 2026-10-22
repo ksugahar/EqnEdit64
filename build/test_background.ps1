@@ -22,15 +22,6 @@ if ((Get-FileHash -Algorithm SHA256 -LiteralPath $app).Hash -ne
     (Get-FileHash -Algorithm SHA256 -LiteralPath $portableApp).Hash) {
     throw 'Portable executable differs from the tested build executable.'
 }
-$signature = Get-AuthenticodeSignature -LiteralPath $portableApp
-if ($signature.Status -ne 'Valid' -or
-    $signature.SignerCertificate.Subject -ne
-        'CN=ksugahar' -or
-    -not ($signature.SignerCertificate.EnhancedKeyUsageList.ObjectId -contains
-        '1.3.6.1.5.5.7.3.3')) {
-    throw "Portable executable has no valid Eqnedit64 developer signature: $($signature.Status)"
-}
-
 & (Join-Path $projectRoot 'tests\test_cli_output.ps1') -AppPath $app
 
 & $unitTest
@@ -242,5 +233,4 @@ Write-Host 'PASS: background operation-log and F12 marker test'
 Write-Host 'PASS: privacy-aware LLM usability bundle from the real operation log'
 Write-Host 'PASS: x64 PE and version resources'
 Write-Host 'PASS: Control Flow Guard, RSDS CodeView record, and commit-archived PDB/map'
-Write-Host 'PASS: valid ksugahar developer signature'
 Write-Host 'PASS: single-file portable release, embedded license, static runtime, and isolated hidden startup'

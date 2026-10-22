@@ -12,7 +12,7 @@ param(
     [ValidateRange(1, 1000000)]
     [int]$EnduranceOps = 5000,
     [ValidateRange(60, 3600)]
-    [int]$EnduranceTimeoutSeconds = 3600,
+    [int]$EnduranceTimeoutSeconds = 1800,
     [Parameter(Mandatory)]
     [ValidateSet('Unsigned', 'Signed')]
     [string]$Phase,
@@ -23,6 +23,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($EnduranceSeeds -ne 100 -or $EnduranceOps -ne 5000 -or $EnduranceTimeoutSeconds -ne 1800) {
+    throw 'Release gate requires 100 seeds, 5000 operations per seed and 1800 seconds'
+}
 if ($env:EQNEDIT64_ISOLATED_TEST_SESSION -ne '1') {
     throw @'
 The full release gate starts and exits several private-font processes.
@@ -38,23 +41,44 @@ if ([IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($CheckpointPa
 }
 if ($Phase -eq 'Signed') {
     if (-not $UnsignedReportPath) { throw 'UnsignedReportPath is required' }
-    if ($ReportPath -eq $UnsignedReportPath -or $ReportPath -eq $CheckpointPath) {
+    if ([IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($UnsignedReportPath) -or
+        [IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($CheckpointPath)) {
         throw 'Signed report must preserve the unsigned records'
     }
     foreach ($required in @($CheckpointPath, $UnsignedReportPath, $buildExe, $distExe)) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing checkpoint input: $required" }
     }
-    if ((Get-FileHash $buildExe).Hash -ne (Get-FileHash $distExe).Hash) { throw 'Signed build/dist mismatch' }
-    $signature = Get-AuthenticodeSignature -LiteralPath $distExe
-    if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -cne 'CN=ksugahar' -or
-        -not ($signature.SignerCertificate.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3')) {
-        throw 'Invalid code signing certificate'
+    $releaseFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $distExe) -File)
+    if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -cne 'Eqnedit64.exe') {
+        throw 'dist must contain Eqnedit64.exe only'
     }
-    Push-Location $root
+    # Hold both actual inputs against writes/replacement throughout trust and byte checks.
+    $buildLock = [IO.File]::Open($buildExe, 'Open', 'Read', 'Read')
     try {
-        & python tools/signing_checkpoint.py verify --exe $distExe --acceptance $UnsignedReportPath --checkpoint $CheckpointPath --output $ReportPath
-        if ($LASTEXITCODE -ne 0) { throw 'Signed qualification payload verification failed' }
-    } finally { Pop-Location }
+        $distLock = [IO.File]::Open($distExe, 'Open', 'Read', 'Read')
+        try {
+            if ((Get-FileHash $buildExe).Hash -ne (Get-FileHash $distExe).Hash) { throw 'Signed build/dist mismatch' }
+            $signature = Get-AuthenticodeSignature -LiteralPath $distExe
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -cne 'CN=ksugahar' -or
+                -not ($signature.SignerCertificate.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3')) {
+                throw 'Invalid code signing certificate'
+            }
+            $certificateHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($signature.SignerCertificate.RawData))
+            if ($env:EQNEDIT64_SIGNER_SHA256) {
+                if ($env:EQNEDIT64_SIGNER_SHA256 -notmatch '^[0-9a-fA-F]{64}$' -or
+                    $certificateHash -cne $env:EQNEDIT64_SIGNER_SHA256.ToUpperInvariant()) { throw 'Signer pin mismatch' }
+            }
+            Push-Location $root
+            try {
+                & python tools/signing_checkpoint.py verify --exe $distExe --acceptance $UnsignedReportPath --checkpoint $CheckpointPath --output $ReportPath
+                if ($LASTEXITCODE -ne 0) { throw 'Signed qualification payload verification failed' }
+            } finally { Pop-Location }
+            $signedReport = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json
+            $signedReport | Add-Member -NotePropertyName signer -NotePropertyValue $signature.SignerCertificate.Subject
+            $signedReport | Add-Member -NotePropertyName signer_sha256 -NotePropertyValue $certificateHash
+            $signedReport | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        } finally { $distLock.Dispose() }
+    } finally { $buildLock.Dispose() }
     Write-Host 'PASS: signed payload matches completed unsigned qualification; no rebuild'
     return
 }
@@ -101,7 +125,7 @@ foreach ($required in @($buildExe, $distExe)) {
 Invoke-PowerShellScript 'build\test_font_session.ps1' @(
     '-AppPath', $distExe, '-Iterations', 32)
 
-# The long normal-build run is separate from ASan: it exercises the signed,
+# The long normal-build run is separate from ASan: it exercises the unsigned,
 # portable executable that will actually be deployed.
 $enduranceTimer = [Diagnostics.Stopwatch]::StartNew()
 Invoke-PowerShellScript 'build\test_ui_fuzz.ps1' @(

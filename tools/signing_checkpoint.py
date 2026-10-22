@@ -38,16 +38,12 @@ def payload(data, unsigned_size=None):
         need(offset + length == len(data))
         need(unsigned_size <= offset <= unsigned_size + 7)
         need(data[unsigned_size:offset] == bytes(offset - unsigned_size))
-        # Validate the entire WIN_CERTIFICATE chain, including alignment bytes.
-        cursor = offset
-        while cursor < len(data):
-            need(cursor + 8 <= len(data))
-            n, revision, kind = struct.unpack_from("<IHH", data, cursor)
-            need(n >= 8 and revision == 0x200 and kind == 2 and cursor + n <= len(data))
-            next_cursor = cursor + ((n + 7) // 8) * 8
-            need(next_cursor <= len(data) and not any(data[cursor + n:next_cursor]))
-            cursor = next_cursor
-        need(cursor == len(data))
+        # Exactly one certificate entry; a second entry can carry unsigned data.
+        need(offset + 8 <= len(data))
+        n, revision, kind = struct.unpack_from("<IHH", data, offset)
+        need(n >= 8 and revision == 0x200 and kind == 2)
+        need(offset + ((n + 7) // 8) * 8 == len(data))
+        need(not any(data[offset + n:]))
         end = unsigned_size
     clean = bytearray(data[:end])
     need(security + 8 <= len(clean))
@@ -56,30 +52,40 @@ def payload(data, unsigned_size=None):
     return bytes(clean)
 
 
-def record(source_sha, executable, acceptance):
-    result = json.loads(acceptance.read_text("utf-8-sig"))
-    data = executable.read_bytes()
-    if (result["source_commit"] != source_sha or result["app_sha256"].lower() != digest(data)
+def require_acceptance(result, source_sha, unsigned_sha):
+    if (result["source_commit"] != source_sha or result["app_sha256"].lower() != unsigned_sha
             or result["background_suite"] != "passed" or result["asan_suite"] != "passed"
+            or result["gui_endurance"]["seeds"] != 100
+            or result["gui_endurance"]["operations_per_seed"] != 5000
             or result["gui_endurance"]["total_operations"] != 500000
-            or result["gui_endurance"]["timeout_seconds"] != 3600):
+            or result["gui_endurance"]["timeout_seconds"] != 1800):
         raise ValueError("Completed unsigned qualification is required")
+
+
+def record(source_sha, executable, acceptance):
+    acceptance_bytes = acceptance.read_bytes()
+    result = json.loads(acceptance_bytes.decode("utf-8-sig"))
+    data = executable.read_bytes()
+    require_acceptance(result, source_sha, digest(data))
     return {"schema": "eqnedit64.signing-checkpoint.v1", "source_sha": source_sha,
             "unsigned_size": len(data), "unsigned_sha256": digest(data),
-            "payload_sha256": digest(payload(data)), "acceptance_sha256": digest(acceptance.read_bytes())}
+            "payload_sha256": digest(payload(data)), "acceptance_sha256": digest(acceptance_bytes)}
 
 
 def verify(source_sha, executable, acceptance, checkpoint):
-    saved = json.loads(checkpoint.read_text("utf-8"))
+    checkpoint_bytes = checkpoint.read_bytes()
+    saved = json.loads(checkpoint_bytes.decode("utf-8"))
+    acceptance_bytes = acceptance.read_bytes()
     if saved["schema"] != "eqnedit64.signing-checkpoint.v1" or saved["source_sha"] != source_sha:
         raise ValueError("Source checkpoint mismatch")
-    if saved["acceptance_sha256"] != digest(acceptance.read_bytes()):
+    if saved["acceptance_sha256"] != digest(acceptance_bytes):
         raise ValueError("Unsigned acceptance record changed")
+    require_acceptance(json.loads(acceptance_bytes.decode("utf-8-sig")), source_sha, saved["unsigned_sha256"])
     data = executable.read_bytes()
     if digest(payload(data, saved["unsigned_size"])) != saved["payload_sha256"]:
         raise ValueError("Signed payload differs from qualified unsigned executable")
     return {"source_sha": source_sha, "signed_sha256": digest(data),
-            "payload_sha256": saved["payload_sha256"], "checkpoint_sha256": digest(checkpoint.read_bytes()),
+            "payload_sha256": saved["payload_sha256"], "checkpoint_sha256": digest(checkpoint_bytes),
             "acceptance_sha256": saved["acceptance_sha256"], "payload_matches": True}
 
 
