@@ -38,9 +38,8 @@ wrappers are accepted. Paper metadata such as `\label`, `\nonumber`, `\notag`,
 | `equation.emf` | EMF file at the named path |
 
 `powerpoint` and `word` are aliases for `office`; `google-slides` is an alias
-for `slides`. The old output word `png` remains accepted as an alias for
-`clipboard-png`, but new scripts and teaching material use the explicit name so
-it cannot be mistaken for a file path.
+for `slides`. The output word `png` is rejected with exit code 94. Use
+`clipboard-png` for clipboard output or a filename ending in `.png` for a file.
 
 ```powershell
 Eqnedit64.exe equation.tex office

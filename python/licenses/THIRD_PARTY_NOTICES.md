@@ -23,7 +23,7 @@ The derivative converts cubic CFF outlines to quadratic glyf outlines with
 fontTools 4.60.1, corrects TrueType bearings, and changes the family name.
 Glyph order, advances, cmap, MATH, GSUB and GPOS are preserved. Curve conversion
 and integer rounding mean rasterization is not claimed to be pixel-identical.
-See `MANIFEST-eqnedit-math.txt` for provenance and regeneration.
+The font provenance manifest is supplied as `eqnedit64/licenses/MANIFEST-eqnedit-math.txt` in the installed package.
 The executable verifies and extracts the derivative to a
 content-addressed per-user cache, then loads it for the running process only
 with `AddFontResourceExW(FR_PRIVATE | FR_NOT_ENUM)`.  It is never registered
