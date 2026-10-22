@@ -32,7 +32,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 
 try:
-    import fitz
+    import pymupdf as fitz
     from PIL import Image
 except ImportError:  # pragma: no cover
     print("skip  PyMuPDF and Pillow are needed for the sweep")

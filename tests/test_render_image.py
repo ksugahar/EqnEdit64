@@ -26,7 +26,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 
 try:
-    import fitz  # PyMuPDF, used only to decode the PNG
+    import pymupdf as fitz  # PyMuPDF, used only to decode the PNG
 except ImportError:  # pragma: no cover
     print("skip  PyMuPDF is not installed; cannot decode the rendered PNG")
     raise SystemExit(0)

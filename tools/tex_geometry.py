@@ -181,7 +181,7 @@ def _probe(glyphs, rules, probe):
 
 
 def tex_geometry(latex, name, workdir):
-    import fitz
+    import pymupdf as fitz
     os.makedirs(workdir, exist_ok=True)
     path = os.path.join(workdir, name + ".tex")
     with open(path, "w", encoding="utf-8") as fh:

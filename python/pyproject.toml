@@ -29,6 +29,7 @@ dependencies = []
 
 [project.optional-dependencies]
 test = ["build==1.6.1", "pytest==9.1.1"]
+render-test = ["pymupdf>=1.24.3"]
 
 [project.urls]
 Homepage = "https://github.com/ksugahar/eqnedit64"
