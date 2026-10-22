@@ -109,8 +109,12 @@ def test_nonstandard_gate_settings_fail_before_session_or_build(tmp_path, settin
     import subprocess
     shell = shutil.which("pwsh")
     if not shell: pytest.skip("PowerShell required")
+    import os
+    env = os.environ.copy()
+    for name in ("TEMP", "TMP", "LOCALAPPDATA", "APPDATA", "EQNEDIT64_ISOLATED_TEST_SESSION"):
+        env.pop(name, None)
     result = subprocess.run([shell, "-NoProfile", "-File", str(ROOT / "build/accept_release.ps1"),
-        "-Phase", "Unsigned", "-CheckpointPath", str(tmp_path / "checkpoint.json"), *setting], capture_output=True, text=True)
+        "-Phase", "Unsigned", "-CheckpointPath", str(tmp_path / "checkpoint.json"), *setting], capture_output=True, text=True, env=env)
     assert result.returncode != 0
     assert "Release gate requires" in result.stdout + result.stderr
     assert not (tmp_path / "checkpoint.json").exists()

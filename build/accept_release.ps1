@@ -19,12 +19,15 @@ param(
     [Parameter(Mandatory)]
     [string]$CheckpointPath,
     [string]$UnsignedReportPath,
-    [string]$ReportPath = (Join-Path $env:TEMP 'Eqnedit64-final-acceptance.json')
+    [string]$ReportPath
 )
 
 $ErrorActionPreference = 'Stop'
 if ($EnduranceSeeds -ne 100 -or $EnduranceOps -ne 5000 -or $EnduranceTimeoutSeconds -ne 1800) {
     throw 'Release gate requires 100 seeds, 5000 operations per seed and 1800 seconds'
+}
+if (-not $ReportPath) {
+    $ReportPath = Join-Path ([IO.Path]::GetTempPath()) 'Eqnedit64-final-acceptance.json'
 }
 if ($env:EQNEDIT64_ISOLATED_TEST_SESSION -ne '1') {
     throw @'
