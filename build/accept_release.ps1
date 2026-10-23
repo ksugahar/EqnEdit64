@@ -13,11 +13,22 @@ param(
     [int]$EnduranceOps = 5000,
     [ValidateRange(60, 3600)]
     [int]$EnduranceTimeoutSeconds = 1800,
-    [switch]$SkipBuild,
-    [string]$ReportPath = (Join-Path $env:TEMP 'Eqnedit64-final-acceptance.json')
+    [Parameter(Mandatory)]
+    [ValidateSet('Unsigned', 'Signed')]
+    [string]$Phase,
+    [Parameter(Mandatory)]
+    [string]$CheckpointPath,
+    [string]$UnsignedReportPath,
+    [string]$ReportPath
 )
 
 $ErrorActionPreference = 'Stop'
+if ($EnduranceSeeds -ne 100 -or $EnduranceOps -ne 5000 -or $EnduranceTimeoutSeconds -ne 1800) {
+    throw 'Release gate requires 100 seeds, 5000 operations per seed and 1800 seconds'
+}
+if (-not $ReportPath) {
+    $ReportPath = Join-Path ([IO.Path]::GetTempPath()) 'Eqnedit64-final-acceptance.json'
+}
 if ($env:EQNEDIT64_ISOLATED_TEST_SESSION -ne '1') {
     throw @'
 The full release gate starts and exits several private-font processes.
@@ -28,6 +39,54 @@ $root = Split-Path -Parent $PSScriptRoot
 $buildExe = Join-Path $root 'build\Eqnedit64.exe'
 $distExe = Join-Path $root 'dist\Eqnedit64.exe'
 $started = Get-Date
+if ([IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($CheckpointPath)) {
+    throw 'Report and checkpoint must be separate files'
+}
+if ($Phase -eq 'Signed') {
+    if (-not $UnsignedReportPath) { throw 'UnsignedReportPath is required' }
+    if ([IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($UnsignedReportPath) -or
+        [IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($CheckpointPath)) {
+        throw 'Signed report must preserve the unsigned records'
+    }
+    foreach ($required in @($CheckpointPath, $UnsignedReportPath, $buildExe, $distExe)) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing checkpoint input: $required" }
+    }
+    $releaseFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $distExe) -File)
+    if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -cne 'Eqnedit64.exe') {
+        throw 'dist must contain Eqnedit64.exe only'
+    }
+    # Hold both actual inputs against writes/replacement throughout trust and byte checks.
+    $buildLock = [IO.File]::Open($buildExe, 'Open', 'Read', 'Read')
+    try {
+        $distLock = [IO.File]::Open($distExe, 'Open', 'Read', 'Read')
+        try {
+            if ((Get-FileHash $buildExe).Hash -ne (Get-FileHash $distExe).Hash) { throw 'Signed build/dist mismatch' }
+            $signature = Get-AuthenticodeSignature -LiteralPath $distExe
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -cne 'CN=ksugahar' -or
+                -not ($signature.SignerCertificate.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.5.5.7.3.3')) {
+                throw 'Invalid code signing certificate'
+            }
+            $certificateHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($signature.SignerCertificate.RawData))
+            if ($env:EQNEDIT64_SIGNER_SHA256) {
+                if ($env:EQNEDIT64_SIGNER_SHA256 -notmatch '^[0-9a-fA-F]{64}$' -or
+                    $certificateHash -cne $env:EQNEDIT64_SIGNER_SHA256.ToUpperInvariant()) { throw 'Signer pin mismatch' }
+            }
+            Push-Location $root
+            try {
+                & python tools/signing_checkpoint.py verify --exe $distExe --acceptance $UnsignedReportPath --checkpoint $CheckpointPath --output $ReportPath
+                if ($LASTEXITCODE -ne 0) { throw 'Signed qualification payload verification failed' }
+            } finally { Pop-Location }
+            $signedReport = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json
+            $signedReport | Add-Member -NotePropertyName signer -NotePropertyValue $signature.SignerCertificate.Subject
+            $signedReport | Add-Member -NotePropertyName signer_sha256 -NotePropertyValue $certificateHash
+            $signedReport | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding utf8
+        } finally { $distLock.Dispose() }
+    } finally { $buildLock.Dispose() }
+    Write-Host 'PASS: signed payload matches completed unsigned qualification; no rebuild'
+    return
+}
+if (Test-Path -LiteralPath $CheckpointPath) { throw 'Existing checkpoint must not be overwritten' }
+
 
 function Invoke-Batch([string]$RelativePath, [int]$FuzzTimeoutSeconds = 0) {
     Push-Location $root
@@ -53,7 +112,7 @@ function Invoke-PowerShellScript([string]$RelativePath, [object[]]$Arguments) {
     }
 }
 
-if (-not $SkipBuild) {
+if ($Phase -eq 'Unsigned') {
     Invoke-Batch 'build\build_tests.bat' $EnduranceTimeoutSeconds
     Invoke-Batch 'build\build_asan.bat'
     Invoke-PowerShellScript 'build\test_asan.ps1' @(
@@ -69,7 +128,7 @@ foreach ($required in @($buildExe, $distExe)) {
 Invoke-PowerShellScript 'build\test_font_session.ps1' @(
     '-AppPath', $distExe, '-Iterations', 32)
 
-# The long normal-build run is separate from ASan: it exercises the signed,
+# The long normal-build run is separate from ASan: it exercises the unsigned,
 # portable executable that will actually be deployed.
 $enduranceTimer = [Diagnostics.Stopwatch]::StartNew()
 Invoke-PowerShellScript 'build\test_ui_fuzz.ps1' @(
@@ -98,14 +157,6 @@ if ($buildHash -ne $distHash) {
     throw 'dist\Eqnedit64.exe is not the exact executable exercised by the gate.'
 }
 
-$signature = Get-AuthenticodeSignature -LiteralPath $distExe
-if ($signature.Status -ne 'Valid' -or
-    $signature.SignerCertificate.Subject -cne 'CN=ksugahar' -or
-    -not ($signature.SignerCertificate.EnhancedKeyUsageList.ObjectId -contains
-        '1.3.6.1.5.5.7.3.3')) {
-    throw "Release signature is invalid: $($signature.Status) / $($signature.SignerCertificate.Subject)"
-}
-
 $stamp = Join-Path $root 'src\build_stamp.h'
 $buildCommit = 'unknown'
 if (Test-Path -LiteralPath $stamp) {
@@ -114,7 +165,7 @@ if (Test-Path -LiteralPath $stamp) {
     if ($match) { $buildCommit = $match.Line -replace '.*"(.*)".*', '$1' }
 }
 $gitCommit = (& git -C $root rev-parse HEAD).Trim()
-$asanRuntime = if (-not $SkipBuild) {
+$asanRuntime = if ($Phase -eq 'Unsigned') {
     $runtimePath = Join-Path $root 'build\clang_rt.asan_dynamic-x86_64.dll'
     $runtimeInfo = Get-Item -LiteralPath $runtimePath -ErrorAction Stop
     [ordered]@{
@@ -132,7 +183,7 @@ $report = [ordered]@{
     app_path = $distExe
     app_sha256 = $distHash
     session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
-    signer = $signature.SignerCertificate.Subject
+    phase = 'unsigned-qualified-awaiting-signature'
     distribution_files = @($releaseFiles.Name)
     gui_endurance = [ordered]@{
         seeds = $EnduranceSeeds
@@ -143,10 +194,10 @@ $report = [ordered]@{
     }
     font_lifecycles = 32
     paint_benchmark = $paintMeasurements.Trim()
-    background_suite = if ($SkipBuild) { 'skipped by caller' } else { 'passed' }
-    asan_suite = if ($SkipBuild) { 'skipped by caller' } else { 'passed' }
+    background_suite = 'passed'
+    asan_suite = 'passed'
     asan_runtime = $asanRuntime
-    build_phase_fuzz_timeout_seconds = if ($SkipBuild) { $null } else { $EnduranceTimeoutSeconds }
+    build_phase_fuzz_timeout_seconds = $EnduranceTimeoutSeconds
 }
 $reportFolder = Split-Path -Parent $ReportPath
 if (-not (Test-Path -LiteralPath $reportFolder)) {
@@ -155,10 +206,15 @@ if (-not (Test-Path -LiteralPath $reportFolder)) {
 $report | ConvertTo-Json -Depth 5 |
     Set-Content -LiteralPath $ReportPath -Encoding utf8
 
-Write-Host 'PASS: Eqnedit64 final acceptance gate'
+Push-Location $root
+try {
+    & python tools/signing_checkpoint.py record --exe $distExe --acceptance $ReportPath --checkpoint $CheckpointPath
+    if ($LASTEXITCODE -ne 0) { throw 'Unsigned signing checkpoint failed' }
+} finally { Pop-Location }
+Write-Host 'PASS: unsigned qualification complete; manager signing required' 
 Write-Host "  commit: $buildCommit"
 Write-Host "  sha256: $distHash"
-Write-Host "  signer: $($signature.SignerCertificate.Subject)"
+
 Write-Host "  endurance: $EnduranceSeeds x $EnduranceOps = $($EnduranceSeeds * $EnduranceOps) operations"
 Write-Host "  paint benchmark: all cached cases below 5 ms"
 Write-Host "  report: $ReportPath"
