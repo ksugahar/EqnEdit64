@@ -183,14 +183,11 @@ foreach ($symbol in @('Eqnedit64.pdb', 'Eqnedit64.map')) {
 }
 
 $version = (Get-Item -LiteralPath $app).VersionInfo
-$cmakeProject = [IO.File]::ReadAllText(
-    (Join-Path $projectRoot 'CMakeLists.txt'), [Text.Encoding]::UTF8)
-$versionMatch = [regex]::Match(
-    $cmakeProject, 'project\(Eqnedit64\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)')
-if (-not $versionMatch.Success) {
-    throw 'Could not read the Eqnedit64 product version from CMakeLists.txt.'
+$expectedVersion = (& python (Join-Path $projectRoot 'tools/release_version.py') --print-version)
+if ($LASTEXITCODE -ne 0 -or $expectedVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+    throw 'Could not read the canonical Eqnedit64 release version.'
 }
-$expectedVersion = $versionMatch.Groups[1].Value
+$expectedVersion = $expectedVersion.Trim()
 if ($version.ProductName -ne 'Eqnedit64' -or
     $version.ProductVersion -notlike "$expectedVersion*") {
     throw "Version resource is missing or invalid."
