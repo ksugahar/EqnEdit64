@@ -1,6 +1,6 @@
 # Eqnedit64 Python package
 
-Source version: **3.1.6** (unreleased candidate). Windows wheels contain the native extension,
+Source version: **3.1.7**. Windows wheels contain the native extension,
 the verified signed standalone executable and canonical Web files.
 
 ```python

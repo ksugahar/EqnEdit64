@@ -17,8 +17,8 @@ def test_version_contract():
     assert f'#define EQNEDIT64_VERSION_TEXT "{version}"' in header
     assert f'#define EQNEDIT64_VERSION_TEXT_W L"{version}"' in header
     assert f'__version__ = "{version}"' in (PACKAGE / "src/eqnedit64/__init__.py").read_text("utf-8")
-    assert f'project(Eqnedit64 VERSION {version} ' in (ROOT / "CMakeLists.txt").read_text("utf-8")
-    assert f'var BUILD = "{version} (' in (ROOT / "web/equation-editor.js").read_text("utf-8")
+    assert 'project(Eqnedit64 VERSION ${EQNEDIT64_VERSION} ' in (ROOT / "CMakeLists.txt").read_text("utf-8")
+    assert f'var BUILD = "{version}";' in (ROOT / "web/equation-editor.js").read_text("utf-8")
     for changelog in [ROOT / "docs/CHANGELOG.md"]:
         assert re.search(rf"^## {re.escape(version)}(?: |$)", changelog.read_text("utf-8"), re.M)
     for readme in [ROOT / "README.md", PACKAGE / "README.md"]:

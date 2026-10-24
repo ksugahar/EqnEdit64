@@ -1,6 +1,6 @@
 # Eqnedit64
 
-Source version: **3.1.6** is the first independent-repository candidate; not released yet.
+Source version: **3.1.7**.
 Eqnedit64 is a portable Windows TeX equation editor with native, Python and Web interfaces.
 
 ## Build and use

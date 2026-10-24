@@ -10,7 +10,7 @@ import tempfile
 import eqnedit64
 
 
-assert eqnedit64.__version__ == "3.1.6"
+assert eqnedit64.__version__ == "3.1.7"
 metadata = distribution("eqnedit64")
 notices = [entry for entry in (metadata.files or []) if entry.name == "PYBIND11-LICENSE.txt"]
 assert len(notices) == 1, "The wheel must ship the complete pybind11 redistribution notice"
