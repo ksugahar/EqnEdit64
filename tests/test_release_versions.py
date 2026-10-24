@@ -200,3 +200,8 @@ def test_dependency_order_and_nonmutating_build_paths():
     assert "release_version.py --check" in (ROOT / "build/build_eqnedit64.bat").read_text(encoding="utf-8")
     for name in ("CMakeLists.txt", "python/CMakeLists.txt"):
         assert 'tools/release_version.py" --check' in (ROOT / name).read_text(encoding="utf-8")
+
+
+def test_html_entity_version_label_is_rejected():
+    with pytest.raises(ValueError):
+        gate.web(b"<span>3.1.7 &#99;andidate</span>", "equation-editor.fragment.html", "3.1.7")

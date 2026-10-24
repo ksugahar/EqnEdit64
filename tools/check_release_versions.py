@@ -1,6 +1,7 @@
 """Fail closed on development version labels in actual publication artifacts."""
 import argparse
 from email.parser import Parser
+from html import unescape
 import json
 from pathlib import Path
 import re
@@ -62,7 +63,7 @@ def web(data, name, expected):
         if fields != [expected]:
             raise ValueError(f"{name}: expected one final BUILD {expected!r}, got {fields!r}")
     else:
-        clean(text, name)
+        clean(unescape(text), name)
 
 
 def pe_versions(data):
@@ -187,8 +188,8 @@ def check(path, expected):
             text = archive.read(metadata[0]).decode("utf-8")
             metadata_text = Parser().parsestr(text)
             # Trove's standard Development Status classifier is not a version label.
-            clean("\n".join(line for line in text.splitlines()
-                            if not line.startswith("Classifier: Development Status ::")), metadata[0])
+            clean(unescape("\n".join(line for line in text.splitlines()
+                            if not re.fullmatch(r"Classifier: Development Status :: [1-7] - (?:Planning|Pre-Alpha|Alpha|Beta|Production/Stable|Mature|Inactive)", line))), metadata[0])
             metadata_versions = metadata_text.get_all("Version", [])
             if len(metadata_versions) != 1:
                 raise ValueError("Expected exactly one wheel Version header")
