@@ -31,6 +31,7 @@ def generated(root=ROOT):
     for name, pattern, replacement in [
         ("web/equation-editor.js", r'(?m)^  var BUILD = .*?;$', f'  var BUILD = "{v}";'),
         ("README.md", r'(?m)^Source version:.*$', f'Source version: **{v}**.'),
+        ("docs/GUI_SPEC.md", r'(?m)^- 対象: Eqnedit64 .*$', f'- 対象: Eqnedit64 {v}'),
         ("python/README.md", r'(?m)^Source version:.*$', f'Source version: **{v}**. Windows wheels contain the native extension,'),
         ("python/src/eqnedit64/__init__.py", r'(?m)^__version__ = .*$', f'__version__ = "{v}"'),
     ]:

@@ -9,7 +9,7 @@ def prepare():
     spec = importlib.util.spec_from_file_location("release_version", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.generate()
+    module.generate(check=True)
 
 
 def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):

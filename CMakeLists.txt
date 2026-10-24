@@ -5,7 +5,7 @@
 # dist, so a build from this file can never become the shipped executable.
 cmake_minimum_required(VERSION 3.20)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
-execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/release_version.py"
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/release_version.py" --check
     COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/release_version.py" --print-version
     OUTPUT_VARIABLE EQNEDIT64_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)

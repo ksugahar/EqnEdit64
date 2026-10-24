@@ -15,7 +15,7 @@ execute_process(
 find_package(pybind11 CONFIG REQUIRED PATHS "${PYBIND11_CMAKE_DIR}" NO_DEFAULT_PATH)
 
 get_filename_component(EQNEDIT64_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
-execute_process(COMMAND "${Python_EXECUTABLE}" "${EQNEDIT64_ROOT}/tools/release_version.py"
+execute_process(COMMAND "${Python_EXECUTABLE}" "${EQNEDIT64_ROOT}/tools/release_version.py" --check
     COMMAND_ERROR_IS_FATAL ANY)
 set(EQNEDIT64_SRC "${EQNEDIT64_ROOT}/src")
 set(EQNEDIT64_ASSETS "${EQNEDIT64_ROOT}/assets")

@@ -9,11 +9,42 @@ import zipfile
 
 from release_version import version
 
-MARKER = re.compile(r"(?i)\b(?:candidate|unreleased)\b|(?<![a-z])dev(?:elopment)?(?=\b|[0-9])")
+# ASCII boundaries also reject suffixes attached to Japanese version labels.
+MARKER = re.compile(r"(?i)(?<![a-z])(?:candidate|unreleased|dev(?:elopment)?)(?![a-z])|未公開|開発版|候補")
+
+
+def decoded_js(text):
+    # Check the complete source, avoiding a partial lexer confused by regex literals.
+    escapes = re.compile(r"\\(?:u\{([0-9a-fA-F]{1,6})\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2}))")
+    return escapes.sub(lambda m: chr(int(next(g for g in m.groups() if g is not None), 16)), text)
+
+
+def decoded_json(text):
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError("Duplicate manifest field")
+            result[key] = value
+        return result
+    record = json.loads(text, object_pairs_hook=pairs)
+    def scan(value):
+        if isinstance(value, str):
+            clean(value, "decoded manifest text")
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                scan(key)
+                scan(child)
+        elif isinstance(value, list):
+            for child in value:
+                scan(child)
+    scan(record)
+    return record
 
 
 def clean(text, name):
-    if MARKER.search(text):
+    prerelease = re.search(r"(?i)(?:[0-9]+\.[0-9]+\.[0-9]+[ ()_.+\-]*(?:alpha|beta|rc[0-9]*|preview)|(?:alpha|beta|rc[0-9]*|preview)[ ()_.+\-]*v?[0-9]+\.[0-9]+\.[0-9]+)", text)
+    if MARKER.search(text) or prerelease:
         raise ValueError(f"Development version marker in {name}")
 
 
@@ -26,10 +57,7 @@ def exact(value, expected, name):
 def web(data, name, expected):
     text = data.decode("utf-8-sig")
     if name.endswith(".js"):
-        # Identifiers are not version labels; inspect quoted publication strings.
-        literals = re.findall(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', text)
-        for literal in literals:
-            clean(literal, name)
+        clean(decoded_js(text), name)
         fields = re.findall(r'\bvar BUILD = "([^"]+)";', text)
         if fields != [expected]:
             raise ValueError(f"{name}: expected one final BUILD {expected!r}, got {fields!r}")
@@ -91,7 +119,9 @@ def pe_versions(data):
                 yield data[start:start+size]
 
     values = []
+    roots = 0
     def blocks(blob, at, limit):
+        nonlocal roots
         if at+6 > limit:
             raise ValueError("Truncated VERSIONINFO")
         length, count, kind = struct.unpack_from("<HHH", blob, at)
@@ -112,8 +142,25 @@ def pe_versions(data):
         size = count*2 if kind == 1 else count
         if pos+size > end:
             raise ValueError("Truncated VERSIONINFO value")
-        if key in ("FileVersion", "ProductVersion"):
-            values.append((key, blob[pos:pos+size].decode("utf-16le").rstrip("\0")))
+        if at == 0:
+            roots += 1
+            if key != "VS_VERSION_INFO" or kind != 0 or size != 52:
+                raise ValueError("Invalid VS_VERSION_INFO root/fixed version block")
+            fixed = struct.unpack_from("<13I", blob, pos)
+            if fixed[0] != 0xFEEF04BD or fixed[1] != 0x00010000:
+                raise ValueError("Invalid VS_FIXEDFILEINFO signature/version")
+            if fixed[7] != 0:
+                raise ValueError("Non-final VERSIONINFO file flags")
+            for label, ms, ls in (("FileVersion numeric", fixed[2], fixed[3]),
+                                  ("ProductVersion numeric", fixed[4], fixed[5])):
+                parts = [ms >> 16, ms & 0xffff, ls >> 16, ls & 0xffff]
+                values.append((label, ".".join(map(str, parts[:3])) if parts[3] == 0 else ".".join(map(str, parts))))
+        elif kind == 1 and size:
+            text_value = blob[pos:pos+size].decode("utf-16le").rstrip("\0")
+            clean(key, "VERSIONINFO field name")
+            clean(text_value, "VERSIONINFO " + key)
+            if key in ("FileVersion", "ProductVersion"):
+                values.append((key, text_value))
         child = (pos+size+3) & ~3
         while child+6 <= end:
             used = blocks(blob, child, end)
@@ -121,6 +168,8 @@ def pe_versions(data):
         return end
     for blob in leaves(0):
         blocks(blob, 0, len(blob))
+    if not roots:
+        raise ValueError("Missing VS_VERSION_INFO root")
     if not all(any(key == wanted for key, _ in values) for wanted in ("FileVersion", "ProductVersion")):
         raise ValueError("Missing FileVersion/ProductVersion")
     return values
@@ -159,7 +208,7 @@ def check(path, expected):
                 elif member.endswith(".release.json"):
                     record_text = archive.read(member).decode("utf-8-sig")
                     clean(record_text, member)
-                    record = json.loads(record_text)
+                    record = decoded_json(record_text)
                     exact(record["version"], expected, member)
                     exact(record["tag"], "v"+expected, member)
     elif path.suffix.lower() == ".exe":
@@ -168,7 +217,7 @@ def check(path, expected):
     elif path.name.endswith(".release.json"):
         text = path.read_text("utf-8-sig")
         clean(text, path.name)
-        record = json.loads(text)
+        record = decoded_json(text)
         exact(record["version"], expected, "manifest version")
         exact(record["tag"], "v"+expected, "manifest tag")
     elif path.suffix in (".js", ".html"):

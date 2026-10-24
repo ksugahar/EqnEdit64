@@ -9,7 +9,7 @@ if errorlevel 1 exit /b 1
 cd /d "%~dp0.."
 pwsh -NoProfile -ExecutionPolicy Bypass -File build\stop_running_release.ps1
 if errorlevel 1 ( echo [ERROR] running Eqnedit64 cleanup failed & exit /b 1 )
-python tools\release_version.py
+python tools\release_version.py --check
 if errorlevel 1 ( echo [ERROR] release version generation failed & exit /b 1 )
 
 echo [INFO] building build\Eqnedit64.exe

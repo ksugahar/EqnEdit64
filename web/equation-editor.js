@@ -3028,9 +3028,9 @@
     }
 
     function containsOnly(node, child) {
-      return Array.prototype.every.call(node.childNodes, function (candidate) {
-        return candidate === child ||
-          (candidate.nodeType === 3 && candidate.nodeValue.trim() === "");
+      return Array.prototype.every.call(node.childNodes, function (otherNode) {
+        return otherNode === child ||
+          (otherNode.nodeType === 3 && otherNode.nodeValue.trim() === "");
       });
     }
 
