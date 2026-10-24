@@ -23,6 +23,46 @@ def test_workflow_has_literal_event_trigger(name):
     assert isinstance(data["on"], dict) and data["on"]
 
 
+def test_hosted_runtime_and_artifact_transport_contracts():
+    """Guards: pinned hosted runtimes and artifact paths; assumes upstream pins are reviewed."""
+    pins = {}
+    for name in ("eqnedit64.yml", "release-eqnedit64-pypi.yml"):
+        for job in workflow(name)["jobs"].values():
+            assert job["runs-on"] in {"ubuntu-24.04", "windows-2022"}
+            for step in job.get("steps", []):
+                if "uses" not in step:
+                    continue
+                action, ref = step["uses"].split("@")
+                assert re.fullmatch(r"[0-9a-f]{40}", ref), step["uses"]
+                assert pins.setdefault(action, ref) == ref, (action, "inconsistent pins")
+                inputs = step.get("with", {})
+                if action == "actions/setup-node":
+                    assert str(inputs["node-version"]) == "24"
+                    assert inputs["package-manager-cache"] is False
+                if action == "actions/download-artifact":
+                    assert not (inputs.get("name") and inputs.get("artifact-ids"))
+                    assert not inputs.get("skip-decompress", False)
+                    assert inputs.get("digest-mismatch", "error") == "error"
+                if action == "actions/upload-artifact":
+                    assert inputs.get("archive", True) is True
+                    assert inputs.get("overwrite", False) is False
+                    assert inputs.get("include-hidden-files", False) is False
+
+    jobs = workflow("release-eqnedit64-pypi.yml")["jobs"]
+    context = next(s for s in jobs["qualify"]["steps"]
+                   if s.get("uses", "").startswith("actions/download-artifact@"))["with"]
+    assert context["name"] == "eqnedit64-ci-release-context"
+    assert context["path"] == "eqnedit64-ci-release-context"
+    assert context["run-id"] == "${{ github.event.workflow_run.id }}"
+    assert context["github-token"] == "${{ secrets.GITHUB_TOKEN }}"
+    downloads = [s["with"] for s in jobs["publish"]["steps"]
+                 if s.get("uses", "").startswith("actions/download-artifact@")]
+    assert any(d.get("pattern") == "eqnedit64-wheel-*" and d["path"] == "dist"
+               and d["merge-multiple"] is True for d in downloads)
+    assert any(d.get("name") == "eqnedit64-signed-standalone"
+               and d["path"] == "standalone" for d in downloads)
+
+
 def test_privileged_release_checkouts_do_not_persist_credentials():
     data = workflow("release-eqnedit64-pypi.yml")
     for name in ("signed-standalone", "publish"):
