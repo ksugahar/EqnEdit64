@@ -140,7 +140,10 @@ def check(path, expected):
             # Trove's standard Development Status classifier is not a version label.
             clean("\n".join(line for line in text.splitlines()
                             if not line.startswith("Classifier: Development Status ::")), metadata[0])
-            exact(metadata_text["Version"] or "", expected, metadata[0])
+            metadata_versions = metadata_text.get_all("Version", [])
+            if len(metadata_versions) != 1:
+                raise ValueError("Expected exactly one wheel Version header")
+            exact(metadata_versions[0], expected, metadata[0])
             for required in ("eqnedit64/Eqnedit64.exe", "eqnedit64/web/equation-editor.js", "eqnedit64/web/equation-editor.fragment.html"):
                 payload = archive.read(required)
                 if required.endswith(".exe"):
@@ -148,6 +151,17 @@ def check(path, expected):
                         exact(value, expected, name)
                 else:
                     web(payload, required, expected)
+            for member in names:
+                if member.endswith((".js", ".html")) and member not in (
+                    "eqnedit64/web/equation-editor.js", "eqnedit64/web/equation-editor.fragment.html"
+                ):
+                    web(archive.read(member), member, expected)
+                elif member.endswith(".release.json"):
+                    record_text = archive.read(member).decode("utf-8-sig")
+                    clean(record_text, member)
+                    record = json.loads(record_text)
+                    exact(record["version"], expected, member)
+                    exact(record["tag"], "v"+expected, member)
     elif path.suffix.lower() == ".exe":
         for name, value in pe_versions(path.read_bytes()):
             exact(value, expected, name)

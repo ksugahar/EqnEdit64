@@ -136,3 +136,12 @@ def test_release_workflow_gates_artifacts_before_approval_and_publish():
         gates = [i for i, step in enumerate(steps) if "tools/check_release_versions.py" in step.get("run", "")]
         boundaries = [i for i, step in enumerate(steps) if step.get("uses", "").startswith(("actions/upload-artifact@", "pypa/gh-action-pypi-publish@"))]
         assert gates and boundaries and max(gates) < min(boundaries), job
+
+
+def test_additional_packaged_web_labels_are_not_ignored(tmp_path):
+    path = tmp_path / "release.whl"
+    wheel(path)
+    with zipfile.ZipFile(path, "a") as z:
+        z.writestr("eqnedit64/web/version.html", "<span>3.1.7 candidate</span>")
+    with pytest.raises(ValueError, match="Development version marker"):
+        gate.check(path, "3.1.7")

@@ -50,6 +50,9 @@ if not exist build\Eqnedit64.exe (
 python tests\check_pe_debug.py build\Eqnedit64.exe
 if errorlevel 1 ( echo [ERROR] public debug path check failed & exit /b 1 )
 
+python tools\check_release_versions.py --artifact build\Eqnedit64.exe --artifact web\equation-editor.js --artifact web\equation-editor.fragment.html
+if errorlevel 1 ( echo [ERROR] release version label check failed & exit /b 1 )
+
 REM Keep private symbols by source commit without adding them to the portable
 REM one-file distribution.  Crash dumps from that build can then be resolved.
 if not exist "symbols\!STAMP!" mkdir "symbols\!STAMP!"
