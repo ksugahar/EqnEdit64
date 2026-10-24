@@ -115,6 +115,9 @@ def test_gate_rejects_mismatched_or_missing_payload(tmp_path):
 
 
 def test_backend_generates_before_metadata(monkeypatch):
+    import types
+    fake_backend = types.SimpleNamespace(prepare_metadata_for_build_wheel=lambda *args: None)
+    monkeypatch.setitem(sys.modules, "scikit_build_core", types.SimpleNamespace(build=fake_backend))
     spec = importlib.util.spec_from_file_location("release_backend", ROOT / "python/build_backend/release_backend.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
