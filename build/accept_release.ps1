@@ -73,6 +73,10 @@ if ($Phase -eq 'Signed') {
             }
             Push-Location $root
             try {
+                & python tools/release_version.py --check
+                if ($LASTEXITCODE -ne 0) { throw 'Generated release version fields are stale' }
+                & python tools/check_release_versions.py --artifact $distExe --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html
+                if ($LASTEXITCODE -ne 0) { throw 'Signed release version label gate failed' }
                 & python tools/signing_checkpoint.py verify --exe $distExe --acceptance $UnsignedReportPath --checkpoint $CheckpointPath --output $ReportPath
                 if ($LASTEXITCODE -ne 0) { throw 'Signed qualification payload verification failed' }
             } finally { Pop-Location }

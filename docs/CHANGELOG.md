@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.7
+
+- Generate all release version displays from the package version and reject development labels in publication artifacts.
+
 ## 3.1.6 — unreleased
 
 - Move native, Web and Python sources to the independent Eqnedit64 repository.

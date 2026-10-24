@@ -21,7 +21,7 @@
   /* デプロイごとに上げる。ボタン行の右端に出て、開きっぱなしのタブが
    * 古い版を動かし続けていないかを一目で判別できる（.exe の
    * タイトルバー・ビルドスタンプと同じ教訓）。 */
-  var BUILD = "3.1.6 (2026-10-16 candidate)";
+  var BUILD = "3.1.7";
 
   // BEGIN GENERATED PALETTES
   var PALETTES = [
@@ -3028,9 +3028,9 @@
     }
 
     function containsOnly(node, child) {
-      return Array.prototype.every.call(node.childNodes, function (candidate) {
-        return candidate === child ||
-          (candidate.nodeType === 3 && candidate.nodeValue.trim() === "");
+      return Array.prototype.every.call(node.childNodes, function (otherNode) {
+        return otherNode === child ||
+          (otherNode.nodeType === 3 && otherNode.nodeValue.trim() === "");
       });
     }
 

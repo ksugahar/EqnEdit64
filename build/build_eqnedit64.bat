@@ -9,6 +9,9 @@ if errorlevel 1 exit /b 1
 cd /d "%~dp0.."
 pwsh -NoProfile -ExecutionPolicy Bypass -File build\stop_running_release.ps1
 if errorlevel 1 ( echo [ERROR] running Eqnedit64 cleanup failed & exit /b 1 )
+python tools\release_version.py --check
+if errorlevel 1 ( echo [ERROR] release version generation failed & exit /b 1 )
+
 echo [INFO] building build\Eqnedit64.exe
 
 REM Stamp every binary with its exact source revision.
@@ -46,6 +49,9 @@ if not exist build\Eqnedit64.exe (
 )
 python tests\check_pe_debug.py build\Eqnedit64.exe
 if errorlevel 1 ( echo [ERROR] public debug path check failed & exit /b 1 )
+
+python tools\check_release_versions.py --artifact build\Eqnedit64.exe --artifact web\equation-editor.js --artifact web\equation-editor.fragment.html
+if errorlevel 1 ( echo [ERROR] release version label check failed & exit /b 1 )
 
 REM Keep private symbols by source commit without adding them to the portable
 REM one-file distribution.  Crash dumps from that build can then be resolved.

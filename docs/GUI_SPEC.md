@@ -1,7 +1,7 @@
 # Eqnedit64 GUI仕様
 
 - 仕様版: 1.0
-- 対象: Eqnedit64 3.1.6 independent source candidate
+- 対象: Eqnedit64 3.1.7
 - 適用範囲: `dist\Eqnedit64.exe`
 
 この文書は、Eqnedit64の画面、操作、状態遷移、ファイル、クリップボード、

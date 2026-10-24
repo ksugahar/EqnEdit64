@@ -11,9 +11,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--report", type=Path, required=True)
     args = p.parse_args()
-    commands = [[sys.executable, "tools/privacy_lint.py"],
+    commands = [[sys.executable, "tools/release_version.py", "--check"],
+                [sys.executable, "tools/privacy_lint.py"],
                 [sys.executable, "tests/check_public_names.py"],
-                [sys.executable, "-m", "pytest", "tests/test_public_names.py", "tests/test_privacy_lint.py", "tests/test_version_contract.py", "tests/test_release_workflow.py", "tests/test_signing_checkpoint.py", "-q"]]
+                [sys.executable, "-m", "pytest", "tests/test_public_names.py", "tests/test_privacy_lint.py", "tests/test_version_contract.py", "tests/test_release_workflow.py", "tests/test_signing_checkpoint.py", "tests/test_release_versions.py", "-q"]]
     steps = []
     for command in commands:
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)

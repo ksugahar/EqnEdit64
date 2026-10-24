@@ -2,12 +2,14 @@
 requires = [
     "scikit-build-core==1.1.1",
     "pybind11==3.1.0",
+    "tomli==2.2.1; python_version < '3.11'",
 ]
-build-backend = "scikit_build_core.build"
+build-backend = "release_backend"
+backend-path = ["build_backend"]
 
 [project]
 name = "eqnedit64"
-version = "3.1.6"
+version = "3.1.7"
 description = "Fast TeX equation editing, rendering, and Office clipboard tools"
 readme = "README.md"
 requires-python = ">=3.10"
