@@ -165,7 +165,7 @@ jobs:
         python tools/check_release_versions.py --artifact "$releaseRoot/Eqnedit64.exe" --artifact "$releaseRoot/Eqnedit64.release.json" --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Upload exact signed standalone artifact
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-signed-standalone
         path: ${{ runner.temp }}/eqnedit64-signed-standalone/*
@@ -275,7 +275,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         python tests/check_public_names.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-wheel-${{ matrix.python-version }}
         path: python/dist/*.whl

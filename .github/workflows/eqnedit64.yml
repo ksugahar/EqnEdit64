@@ -66,7 +66,7 @@ jobs:
         } | ConvertTo-Json | Set-Content `
           -LiteralPath (Join-Path $directory 'context.json') -Encoding utf8
     - name: Upload exact Eqnedit64 CI ref context
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-ci-release-context
         path: ${{ runner.temp }}/eqnedit64-ci-release-context/context.json
@@ -122,7 +122,7 @@ jobs:
         $wheel = Get-ChildItem 'python\dist\eqnedit64-*.whl' | Select-Object -First 1
         python -m pip install --force-reinstall $wheel.FullName
         python python\tests\verify_installed.py
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-wheel-candidate
         path: python/dist/*.whl
@@ -162,7 +162,7 @@ jobs:
         if (@(Get-ChildItem palette-proofs -Filter '*.png').Count -ne 120) {
           throw 'Expected 19 palettes at 3 DPIs in normal and selected states'
         }
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-palette-proofs
         path: palette-proofs/
@@ -172,7 +172,7 @@ jobs:
         pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\Eqnedit64.exe -Iterations 32 -OutputPath font-session-after-suites.json
     - name: Preserve font-host acceptance evidence
       if: always()
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-font-session
         path: font-session-*.json
@@ -212,7 +212,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Preserve native PowerPoint math evidence
       if: always()
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-powerpoint-math
         path: powerpoint-math-evidence/
@@ -232,7 +232,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Preserve Office clipboard byte evidence
       if: ${{ always() }}
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-office-bit-parity
         path: ${{ runner.temp }}/eqnedit64-office-bits-*/**
@@ -246,7 +246,7 @@ jobs:
         $records = @($files | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash $_ -Algorithm SHA256 -ErrorAction Stop).Hash} })
         [ordered]@{source_sha=$env:GITHUB_SHA;diagnostic_only=$true;files=$records} | ConvertTo-Json -Depth 4 | Set-Content native-candidate-manifest.json -Encoding utf8
     - name: Preserve final candidate evidence
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-corrected-font-candidate
         retention-days: 1
@@ -263,14 +263,14 @@ jobs:
         if-no-files-found: warn
     - name: Preserve isolated font lifecycle traces
       if: always()
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-font-trace
         path: ${{ runner.temp }}/eqnedit64-font-trace/
         if-no-files-found: warn
     - name: Upload actual compiler identity
       if: always()
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: eqnedit64-msvc-build-test
         path: build_cmake/compiler-identity.json
@@ -286,7 +286,7 @@ jobs:
         python-version: '3.12'
     - run: python -m pip install -r ci-requirements.txt
     - run: python tools/ci_precheck.py --report "$RUNNER_TEMP/precheck.json"
-    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       if: always()
       with:
         name: source-precheck
