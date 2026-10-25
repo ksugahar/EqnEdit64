@@ -14,4 +14,5 @@ The website must check exact source blob bytes and update the matching executabl
 
 The shared interaction contract is [product parity](../docs/PRODUCT_PARITY.md).
 Native/Web clipboard byte regression and real-browser tests are distinct from actual Office acceptance.
-Do not retain or edit an independent homepage implementation.
+Verify SHA-256 and exact bytes against the canonical tag assets.
+Do not retain or edit an independent homepage source copy.
