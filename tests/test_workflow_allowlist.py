@@ -1,12 +1,11 @@
 """Guards: reviewed release commands cannot mask failure; assumes reviewed allowlist."""
 import copy
-import json
 from pathlib import Path
 import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOW = json.loads((ROOT / 'tests/fixtures/release-run-allowlist.json').read_text('utf-8'))
+ALLOW = yaml.load((ROOT / 'tests/fixtures/release-run-allowlist.yml').read_text('utf-8'), Loader=yaml.BaseLoader)
 
 
 def normalize(text):
