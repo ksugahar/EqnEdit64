@@ -335,7 +335,8 @@ jobs:
         EQNEDIT64_SHA: ${{ needs.qualify.outputs.sha }}
       run: |
         python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version "${EQNEDIT64_TAG#v}" --source-sha "$EQNEDIT64_SHA"
-    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+    # gh-action-pypi-publish v1.14.3 (composite); retain the exact reviewed reference.
+    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
       with:
         packages-dir: dist/
         skip-existing: false
