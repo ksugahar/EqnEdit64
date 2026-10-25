@@ -1,14 +1,11 @@
 """Guards: reviewed release commands cannot mask failure; assumes reviewed allowlist."""
 import copy
-import json
 from pathlib import Path
 import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOW = json.loads((ROOT / 'tests/fixtures/release-run-allowlist.json').read_text('utf-8'))
-PREFLIGHT = '''python tools/check_wheel_preflight.py --wheel-dir python/dist --standalone build_cmake/Release/EqnEdit64.exe --source-sha $env:GITHUB_SHA --report "$env:RUNNER_TEMP/eqnedit64-wheel-name-preflight.json"
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }'''
+ALLOW = yaml.load((ROOT / 'tests/fixtures/release-run-allowlist.yml').read_text('utf-8'), Loader=yaml.BaseLoader)
 
 
 def normalize(text):
@@ -23,25 +20,32 @@ def no_error_override(value):
         for item in value: no_error_override(item)
 
 
-def release_contract(data):
+def normalized_context(value):
+    if isinstance(value, dict):
+        return {key: normalize(item) if key == 'run' and isinstance(item, str)
+                else normalized_context(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [normalized_context(item) for item in value]
+    return value
+
+
+def no_global_context(data):
+    assert 'defaults' not in data and 'env' not in data, 'Global execution overrides are forbidden'
     no_error_override(data)
-    jobs = data['jobs']
-    assert {j: v.get('if') for j,v in jobs.items()} == ALLOW['job_if'], 'Unreviewed job condition'
-    for name, job in jobs.items():
-        assert all('if' not in s for s in job['steps']), 'Release steps must be unconditional'
-        runs = [{'name': s.get('name'), 'run': normalize(s['run'])} for s in job['steps'] if 'run' in s]
-        expected = [{'name': s['name'], 'run': normalize(s['run'])} for s in ALLOW['runs'][name]]
-        assert runs == expected, 'Release commands/order differ from the reviewed allowlist'
+
+
+def release_contract(data):
+    no_global_context(data)
+    assert normalized_context(data['jobs']) == normalized_context(ALLOW['release_jobs']), 'Release jobs/steps differ from the reviewed execution context'
 
 
 def preflight_contract(data):
-    no_error_override(data)
+    no_global_context(data)
     job = data['jobs']['build-test']
-    assert 'if' not in job, 'Preflight job must not be conditional'
+    assert normalized_context({k:v for k,v in job.items() if k != 'steps'}) == normalized_context(ALLOW['preflight_job_context']), 'Preflight job context differs'
     steps = [s for s in job['steps'] if s.get('name') == 'Verify actual cp312 wheel naming before installation']
     assert len(steps) == 1, 'Exactly one preflight is required'
-    assert 'if' not in steps[0], 'Preflight must be unconditional'
-    assert normalize(steps[0]['run']) == normalize(PREFLIGHT), 'Preflight commands differ from the reviewed allowlist'
+    assert normalized_context(steps[0]) == normalized_context(ALLOW['preflight_step']), 'Preflight execution context differs'
 
 
 def load(filename):
@@ -60,6 +64,8 @@ def test_previous_bypasses_fail_and_restored_workflow_passes(kind):
     original = load('eqnedit64.yml' if is_preflight else 'release-eqnedit64-pypi.yml')
     contract = preflight_contract if is_preflight else release_contract
     contract(original)
+
+
     data = copy.deepcopy(original)
     if is_preflight:
         step = next(s for s in data['jobs']['build-test']['steps'] if s.get('name') == 'Verify actual cp312 wheel naming before installation')
@@ -74,5 +80,34 @@ def test_previous_bypasses_fail_and_restored_workflow_passes(kind):
                   'colon': ' || :', 'pwsh-exit': '\npwsh -Command "exit 0"'}
         if kind == 'set-plus-e': step['run'] = 'set +e\n' + step['run'] + '\nexit 0'
         else: step['run'] += suffix[kind]
+    with pytest.raises(AssertionError): contract(data)
+    contract(original)
+
+
+@pytest.mark.parametrize('kind', ['shell', 'path', 'checkout-ref', 'action-sha',
+    'global-env', 'global-defaults', 'job-defaults', 'job-env', 'permissions', 'needs',
+    'environment', 'working-directory', 'preflight-shell', 'preflight-env', 'preflight-job'])
+def test_execution_context_bypasses_rejected_and_restored(kind):
+    preflight = kind.startswith('preflight-')
+    original = load('eqnedit64.yml' if preflight else 'release-eqnedit64-pypi.yml')
+    contract = preflight_contract if preflight else release_contract
+    contract(original)
+    data = copy.deepcopy(original)
+    job = data['jobs']['build-test' if preflight else 'qualify']
+    step = next(s for s in job['steps'] if 'check_wheel_preflight.py' in s.get('run','')) if preflight else next(s for s in job['steps'] if s.get('name','').startswith('Bind exact CI context'))
+    if kind in ('shell', 'preflight-shell'): step['shell'] = 'bash {0}'
+    elif kind in ('path', 'preflight-env'): step['env'] = {'PATH': './bin'}
+    elif kind == 'checkout-ref':
+        next(s for s in data['jobs']['publish']['steps'] if s.get('uses','').startswith('actions/checkout@')).setdefault('with',{})['ref'] = 'main'
+    elif kind == 'action-sha':
+        next(s for s in data['jobs']['publish']['steps'] if s.get('uses','').startswith('pypa/'))['uses'] = 'pypa/gh-action-pypi-publish@' + '0' * 40
+    elif kind == 'global-env': data['env'] = {'PATH': './bin'}
+    elif kind == 'global-defaults': data['defaults'] = {'run': {'shell': 'bash {0}'}}
+    elif kind == 'job-defaults': job['defaults'] = {'run': {'shell': 'bash {0}'}}
+    elif kind in ('job-env', 'preflight-job'): job['env'] = {'PATH': './bin'}
+    elif kind == 'permissions': job['permissions'] = {'contents': 'write'}
+    elif kind == 'needs': data['jobs']['publish']['needs'] = ['qualify']
+    elif kind == 'environment': data['jobs']['publish']['environment'] = 'other'
+    else: step['working-directory'] = './other'
     with pytest.raises(AssertionError): contract(data)
     contract(original)
