@@ -1,105 +1,400 @@
 {
-  "job_if": {
-    "qualify": null,
-    "signed-standalone": "needs.qualify.outputs.eligible == 'true'",
-    "build-wheels": "needs.qualify.outputs.eligible == 'true'",
-    "audit-wheels": null,
-    "publish": null
+  "release_jobs": {
+    "qualify": {
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": "5",
+      "env": {
+        "EXPECTED_SOURCE_SHA": "${{ inputs.expected_source_sha }}",
+        "CI_RUN_ID": "${{ inputs.ci_run_id }}",
+        "GH_TOKEN": "${{ github.token }}"
+      },
+      "outputs": {
+        "eligible": "${{ steps.context.outputs.eligible }}",
+        "sha": "${{ steps.context.outputs.sha }}",
+        "tag": "${{ steps.context.outputs.tag }}"
+      },
+      "steps": [
+        {
+          "name": "Reject non-tag dispatch before checkout or API access",
+          "run": "python3 - <<'PY'\nimport os, re\nassert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'\nassert os.environ['GITHUB_REF_TYPE'] == 'tag'\nassert re.fullmatch(r'refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+', os.environ['GITHUB_REF'])\nassert re.fullmatch(r'[0-9a-f]{40}', os.environ['EXPECTED_SOURCE_SHA'])\nassert os.environ['GITHUB_SHA'] == os.environ['EXPECTED_SOURCE_SHA']\nassert re.fullmatch(r'[1-9][0-9]*', os.environ['CI_RUN_ID'])\nPY\n"
+        },
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ github.sha }}",
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "name": "Verify exact tag and successful CI metadata before artifact download",
+          "run": "python3 tools/qualify_release.py --report qualification-api.json"
+        },
+        {
+          "name": "Download exact EqnEdit64 CI ref context",
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "name": "eqnedit64-ci-release-context",
+            "path": "eqnedit64-ci-release-context",
+            "run-id": "${{ inputs.ci_run_id }}",
+            "github-token": "${{ secrets.GITHUB_TOKEN }}"
+          }
+        },
+        {
+          "name": "Bind exact CI context and package version to actual tag",
+          "id": "context",
+          "run": "python3 tools/release_version.py --check\ntest \"$GITHUB_REF\" = \"refs/tags/v$(python3 tools/release_version.py --print-version)\"\npython3 tools/qualify_release.py --context eqnedit64-ci-release-context/context.json --report qualification.json --output \"$GITHUB_OUTPUT\"\n"
+        }
+      ]
+    },
+    "signed-standalone": {
+      "needs": "qualify",
+      "if": "needs.qualify.outputs.eligible == 'true'",
+      "runs-on": "windows-2022",
+      "timeout-minutes": "10",
+      "steps": [
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ needs.qualify.outputs.sha }}",
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Download the signed standalone prepared for this tag",
+          "shell": "pwsh",
+          "env": {
+            "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}",
+            "EQNEDIT64_SHA": "${{ needs.qualify.outputs.sha }}"
+          },
+          "run": "$version = $env:EQNEDIT64_TAG.Substring('v'.Length)\n$dest = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'\nNew-Item -ItemType Directory -Path $dest | Out-Null\n# Download canonical names from the unpublished, exact-SHA draft.\nforeach ($item in @(@(\"EqnEdit64.exe\", 100000),\n                    @(\"EqnEdit64.release.json\", 1),\n                    @(\"SHA256SUMS.txt\", 1))) {\n  $name = $item[0]\n  python tools/download_release_asset.py `\n    --repo $env:GITHUB_REPOSITORY `\n    --tag $env:EQNEDIT64_TAG `\n    --source-sha $env:EQNEDIT64_SHA `\n    --name $name `\n    --min-size $item[1] `\n    --dest $dest\n  if ($LASTEXITCODE -ne 0) {\n    throw (\"The signed standalone for $env:EQNEDIT64_TAG is not staged: \" +\n      \"$name is missing from the exact unpublished draft. \" +\n      'Stage the signed candidate before creating the release tag.')\n  }\n}\n"
+        },
+        {
+          "name": "Verify the signed standalone against the tag",
+          "shell": "pwsh",
+          "env": {
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}",
+            "EQNEDIT64_SHA": "${{ needs.qualify.outputs.sha }}",
+            "EQNEDIT64_SIGNER_SHA256": "${{ secrets.EQNEDIT64_SIGNER_SHA256 }}"
+          },
+          "run": "$releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'\n$exe = Join-Path $releaseRoot 'EqnEdit64.exe'\n$manifestPath = Join-Path $releaseRoot 'EqnEdit64.release.json'\nWrite-Host \"Verifying staged release payload: $releaseRoot\"\n$manifest = Get-Content -LiteralPath $manifestPath -Raw |\n  ConvertFrom-Json\n$allowedKeys = @('schema', 'repository', 'tag', 'version', 'source_sha', 'exe_sha256')\n$actualKeys = @($manifest.PSObject.Properties.Name)\nif (@(Compare-Object $allowedKeys $actualKeys).Count -ne 0) {\n  throw 'Unexpected manifest fields; private metadata must not be published'\n}\n$expectedVersion = $env:EQNEDIT64_TAG.Substring('v'.Length)\n$actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash\n$actualVersion = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\n$pin = $env:EQNEDIT64_SIGNER_SHA256\nif ($pin -notmatch '^[0-9A-Fa-f]{64}$') { throw 'Signer SHA256 setting required' }\n$actualPin = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($signature.SignerCertificate.RawData))\nif ($actualPin -cne $pin.ToUpperInvariant()) { throw 'Signer certificate mismatch' }\n$store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')\ntry {\n  $store.Open('ReadWrite')\n  $store.Add($signature.SignerCertificate)\n} finally { $store.Close() }\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\nif ($signature.Status -ne 'Valid') { throw 'Invalid staged signature after pinned trust setup' }\n\nif ($manifest.schema -cne 'eqnedit64.staged-release.v1' -or\n    $manifest.tag -cne $env:EQNEDIT64_TAG -or\n    $manifest.version -cne $expectedVersion -or\n    $manifest.source_sha -cne $env:EQNEDIT64_SHA -or\n    $manifest.exe_sha256 -cne $actualHash -or\n    $actualVersion -cne $expectedVersion -or\n    $manifest.repository -cne $env:GITHUB_REPOSITORY) {\n  throw ('The staged signed EqnEdit64 does not match this tag. ' +\n    'It must be the executable compiled and signed from the exact ' +\n    'tagged commit, staged by the maintainer signing step before the release tag.')\n}\n\n$artifact = Join-Path $env:RUNNER_TEMP 'eqnedit64-signed-standalone'\nNew-Item -ItemType Directory -Path $artifact | Out-Null\nCopy-Item -LiteralPath $exe -Destination $artifact\nCopy-Item -LiteralPath $manifestPath -Destination $artifact\n$stagedChecksum = Get-Content -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS.txt') -Raw\nif ($stagedChecksum.Trim() -cne ($actualHash.ToLowerInvariant() + '  EqnEdit64.exe')) { throw 'Staged checksum mismatch' }\nCopy-Item -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS.txt') -Destination $artifact\n"
+        },
+        {
+          "name": "Reject development labels in staged release artifacts",
+          "shell": "pwsh",
+          "run": "python tools/release_version.py --check\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n$releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'\npython tools/check_release_versions.py --artifact \"$releaseRoot/EqnEdit64.exe\" --artifact \"$releaseRoot/EqnEdit64.release.json\" --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+        },
+        {
+          "name": "Verify final draft title notes and exact three assets before approval",
+          "shell": "pwsh",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}",
+            "EQNEDIT64_SHA": "${{ needs.qualify.outputs.sha }}"
+          },
+          "run": "python tools/verify_draft_assets.py --repo $env:GITHUB_REPOSITORY --tag $env:EQNEDIT64_TAG --source-sha $env:EQNEDIT64_SHA --artifact-dir \"$env:RUNNER_TEMP/eqnedit64-signed-standalone\" --output $env:GITHUB_OUTPUT\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+        },
+        {
+          "name": "Upload exact signed standalone artifact",
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "with": {
+            "name": "eqnedit64-signed-standalone",
+            "path": "${{ runner.temp }}/eqnedit64-signed-standalone/*",
+            "if-no-files-found": "error"
+          }
+        }
+      ],
+      "permissions": {
+        "contents": "write",
+        "actions": "read"
+      }
+    },
+    "build-wheels": {
+      "needs": [
+        "qualify",
+        "signed-standalone"
+      ],
+      "if": "needs.qualify.outputs.eligible == 'true'",
+      "runs-on": "windows-2022",
+      "strategy": {
+        "fail-fast": "false",
+        "matrix": {
+          "python-version": [
+            "3.10",
+            "3.11",
+            "3.12",
+            "3.13"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ needs.qualify.outputs.sha }}",
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "with": {
+            "python-version": "${{ matrix.python-version }}"
+          }
+        },
+        {
+          "name": "Download exact pre-tag signed artifact",
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "name": "eqnedit64-signed-standalone",
+            "path": "${{ runner.temp }}/eqnedit64-release"
+          }
+        },
+        {
+          "name": "Verify signed standalone artifact",
+          "env": {
+            "EQNEDIT64_SIGNER_SHA256": "${{ secrets.EQNEDIT64_SIGNER_SHA256 }}"
+          },
+          "shell": "pwsh",
+          "run": "$directory = Join-Path $env:RUNNER_TEMP 'eqnedit64-release'\n$exe = Join-Path $directory 'EqnEdit64.exe'\n$checksums = Join-Path $directory 'SHA256SUMS.txt'\n$line = Get-Content -LiteralPath $checksums |\n  Where-Object { $_ -match 'EqnEdit64\\.exe$' } | Select-Object -First 1\nif (-not $line) { throw 'EqnEdit64.exe checksum is missing' }\n$expected = ($line -split '\\s+')[0].ToUpperInvariant()\n$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash\nif ($actual -ne $expected) {\n  throw \"SHA-256 mismatch: $actual != $expected\"\n}\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\n$pin = $env:EQNEDIT64_SIGNER_SHA256\nif ($pin -notmatch '^[0-9A-Fa-f]{64}$') { throw 'Signer SHA256 setting required' }\n$actualPin = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($signature.SignerCertificate.RawData))\nif ($actualPin -cne $pin.ToUpperInvariant()) { throw 'Signer certificate mismatch' }\n$store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')\ntry {\n  $store.Open('ReadWrite')\n  $store.Add($signature.SignerCertificate)\n} finally { $store.Close() }\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\nif ($signature.Status -ne 'Valid') { throw 'Invalid staged signature after pinned trust setup' }\n\n\"EQNEDIT64_RELEASE_EXE=$exe\" |\n  Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8\n"
+        },
+        {
+          "name": "Install wheel build and version parser dependencies",
+          "run": "python -m pip install -r ci-requirements.txt\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+        },
+        {
+          "name": "Verify generated release version text",
+          "run": "python tools/release_version.py --check\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+        },
+        {
+          "name": "Validate tag and package versions",
+          "env": {
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}"
+          },
+          "shell": "pwsh",
+          "run": "$line = Select-String -LiteralPath python\\pyproject.toml `\n  -Pattern '^version\\s*=\\s*\"([^\"]+)\"$' | Select-Object -First 1\nif (-not $line) { throw 'eqnedit64 package version is missing' }\n$version = $line.Matches[0].Groups[1].Value\nif ($env:EQNEDIT64_TAG -cne \"v$version\") {\n  throw \"tag/package mismatch: $env:EQNEDIT64_TAG != v$version\"\n}\n"
+        },
+        {
+          "name": "Build wheel",
+          "run": "python -m build --wheel python\n"
+        },
+        {
+          "name": "Verify installed wheel outside the repository",
+          "shell": "pwsh",
+          "run": "$wheel = Get-ChildItem python\\dist\\eqnedit64-*.whl |\n  Select-Object -First 1\n$target = Join-Path $env:RUNNER_TEMP 'eqnedit64-wheel-test'\npython -m pip install --target $target $wheel.FullName\n$env:PYTHONPATH = $target\nPush-Location $env:RUNNER_TEMP\ntry {\n  python \"$env:GITHUB_WORKSPACE\\python\\tests\\verify_installed.py\"\n} finally {\n  Pop-Location\n}\n"
+        },
+        {
+          "name": "Inspect exact built wheel and embedded executable before upload",
+          "shell": "pwsh",
+          "run": "$wheel = Get-ChildItem python/dist/eqnedit64-*.whl | Select-Object -First 1\npython tools/check_release_versions.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n$version = \"${{ needs.qualify.outputs.tag }}\".Substring(1)\npython tools/check_release_wheels.py --wheel-dir python/dist --standalone $env:EQNEDIT64_RELEASE_EXE --version $version --source-sha \"${{ needs.qualify.outputs.sha }}\" --python-version \"${{ matrix.python-version }}\"\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\npython tests/check_public_names.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+        },
+        {
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "with": {
+            "name": "eqnedit64-wheel-${{ matrix.python-version }}",
+            "path": "python/dist/*.whl",
+            "if-no-files-found": "error"
+          }
+        }
+      ]
+    },
+    "audit-wheels": {
+      "needs": [
+        "qualify",
+        "signed-standalone",
+        "build-wheels"
+      ],
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": "10",
+      "permissions": {
+        "contents": "read",
+        "actions": "read"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ needs.qualify.outputs.sha }}",
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "pattern": "eqnedit64-wheel-*",
+            "path": "dist",
+            "merge-multiple": "true"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "name": "eqnedit64-signed-standalone",
+            "path": "standalone"
+          }
+        },
+        {
+          "name": "Bind all four wheels before requesting human approval",
+          "env": {
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}",
+            "EQNEDIT64_SHA": "${{ needs.qualify.outputs.sha }}"
+          },
+          "run": "python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version \"${EQNEDIT64_TAG#v}\" --source-sha \"$EQNEDIT64_SHA\" --report wheel-audit.json\nargs=(--artifact standalone/EqnEdit64.exe --artifact standalone/EqnEdit64.release.json)\nfor wheel in dist/*.whl; do args+=(--artifact \"$wheel\"); done\npython tools/check_release_versions.py \"${args[@]}\"\n"
+        },
+        {
+          "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+          "with": {
+            "name": "eqnedit64-preapproval-audit",
+            "path": "wheel-audit.json",
+            "if-no-files-found": "error"
+          }
+        }
+      ]
+    },
+    "publish": {
+      "needs": [
+        "qualify",
+        "signed-standalone",
+        "build-wheels",
+        "audit-wheels"
+      ],
+      "runs-on": "ubuntu-24.04",
+      "environment": "pypi",
+      "permissions": {
+        "actions": "read",
+        "contents": "write",
+        "id-token": "write"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ needs.qualify.outputs.sha }}",
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "pattern": "eqnedit64-wheel-*",
+            "path": "dist",
+            "merge-multiple": "true"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "name": "eqnedit64-signed-standalone",
+            "path": "standalone"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "name": "eqnedit64-preapproval-audit",
+            "path": "preapproval"
+          }
+        },
+        {
+          "name": "Recheck actual tag CI and context after human approval",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "EXPECTED_SOURCE_SHA": "${{ needs.qualify.outputs.sha }}",
+            "CI_RUN_ID": "${{ inputs.ci_run_id }}"
+          },
+          "run": "python tools/qualify_release.py --report postapproval-qualification.json"
+        },
+        {
+          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+          "with": {
+            "name": "eqnedit64-ci-release-context",
+            "path": "eqnedit64-ci-release-context",
+            "run-id": "${{ inputs.ci_run_id }}",
+            "github-token": "${{ secrets.GITHUB_TOKEN }}"
+          }
+        },
+        {
+          "name": "Recheck downloaded CI tag context after approval",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "EXPECTED_SOURCE_SHA": "${{ needs.qualify.outputs.sha }}",
+            "CI_RUN_ID": "${{ inputs.ci_run_id }}"
+          },
+          "run": "python tools/qualify_release.py --context eqnedit64-ci-release-context/context.json --report postapproval-context.json"
+        },
+        {
+          "name": "Verify all draft assets before any publication",
+          "id": "draft",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}",
+            "EQNEDIT64_SHA": "${{ needs.qualify.outputs.sha }}"
+          },
+          "run": "python tools/verify_draft_assets.py --repo \"$GITHUB_REPOSITORY\" --tag \"$EQNEDIT64_TAG\" --source-sha \"$EQNEDIT64_SHA\" \\\n  --artifact-dir standalone --output \"$GITHUB_OUTPUT\"\n"
+        },
+        {
+          "name": "Reject development labels before publication",
+          "run": "set -euo pipefail\npython tools/release_version.py --check\nargs=(--artifact standalone/EqnEdit64.exe --artifact standalone/EqnEdit64.release.json --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html)\nfor wheel in dist/*.whl; do args+=(--artifact \"$wheel\"); done\npython tools/check_release_versions.py \"${args[@]}\"\n"
+        },
+        {
+          "name": "Bind all four wheels to the signed standalone and canonical Web blobs",
+          "env": {
+            "EQNEDIT64_TAG": "${{ needs.qualify.outputs.tag }}",
+            "EQNEDIT64_SHA": "${{ needs.qualify.outputs.sha }}"
+          },
+          "run": "python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version \"${EQNEDIT64_TAG#v}\" --source-sha \"$EQNEDIT64_SHA\" --verify-report preapproval/wheel-audit.json\n"
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086",
+          "with": {
+            "packages-dir": "dist/",
+            "skip-existing": "false"
+          }
+        },
+        {
+          "name": "Publish the preverified draft GitHub Release",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}",
+            "DRAFT_RELEASE_ID": "${{ steps.draft.outputs.release_id }}"
+          },
+          "run": "set -euo pipefail\nprintf '%s' '{\"draft\":false,\"prerelease\":false,\"make_latest\":\"true\"}' |\n  gh api --method PATCH \"repos/$GITHUB_REPOSITORY/releases/$DRAFT_RELEASE_ID\" --input - > /dev/null\n"
+        }
+      ]
+    }
   },
-  "runs": {
-    "qualify": [
-      {
-        "name": "Reject non-tag dispatch before checkout or API access",
-        "run": "python3 - <<'PY'\nimport os, re\nassert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'\nassert os.environ['GITHUB_REF_TYPE'] == 'tag'\nassert re.fullmatch(r'refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+', os.environ['GITHUB_REF'])\nassert re.fullmatch(r'[0-9a-f]{40}', os.environ['EXPECTED_SOURCE_SHA'])\nassert os.environ['GITHUB_SHA'] == os.environ['EXPECTED_SOURCE_SHA']\nassert re.fullmatch(r'[1-9][0-9]*', os.environ['CI_RUN_ID'])\nPY\n"
-      },
-      {
-        "name": "Verify exact tag and successful CI metadata before artifact download",
-        "run": "python3 tools/qualify_release.py --report qualification-api.json"
-      },
-      {
-        "name": "Bind exact CI context and package version to actual tag",
-        "run": "python3 tools/release_version.py --check\ntest \"$GITHUB_REF\" = \"refs/tags/v$(python3 tools/release_version.py --print-version)\"\npython3 tools/qualify_release.py --context eqnedit64-ci-release-context/context.json --report qualification.json --output \"$GITHUB_OUTPUT\"\n"
+  "preflight_job_context": {
+    "runs-on": "windows-2022",
+    "env": {
+      "EQNEDIT64_ISOLATED_TEST_SESSION": "1"
+    },
+    "defaults": {
+      "run": {
+        "shell": "pwsh",
+        "working-directory": "."
       }
-    ],
-    "signed-standalone": [
-      {
-        "name": "Download the signed standalone prepared for this tag",
-        "run": "$version = $env:EQNEDIT64_TAG.Substring('v'.Length)\n$dest = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'\nNew-Item -ItemType Directory -Path $dest | Out-Null\n# Download canonical names from the unpublished, exact-SHA draft.\nforeach ($item in @(@(\"EqnEdit64.exe\", 100000),\n                    @(\"EqnEdit64.release.json\", 1),\n                    @(\"SHA256SUMS.txt\", 1))) {\n  $name = $item[0]\n  python tools/download_release_asset.py `\n    --repo $env:GITHUB_REPOSITORY `\n    --tag $env:EQNEDIT64_TAG `\n    --source-sha $env:EQNEDIT64_SHA `\n    --name $name `\n    --min-size $item[1] `\n    --dest $dest\n  if ($LASTEXITCODE -ne 0) {\n    throw (\"The signed standalone for $env:EQNEDIT64_TAG is not staged: \" +\n      \"$name is missing from the exact unpublished draft. \" +\n      'Stage the signed candidate before creating the release tag.')\n  }\n}\n"
-      },
-      {
-        "name": "Verify the signed standalone against the tag",
-        "run": "$releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'\n$exe = Join-Path $releaseRoot 'EqnEdit64.exe'\n$manifestPath = Join-Path $releaseRoot 'EqnEdit64.release.json'\nWrite-Host \"Verifying staged release payload: $releaseRoot\"\n$manifest = Get-Content -LiteralPath $manifestPath -Raw |\n  ConvertFrom-Json\n$allowedKeys = @('schema', 'repository', 'tag', 'version', 'source_sha', 'exe_sha256')\n$actualKeys = @($manifest.PSObject.Properties.Name)\nif (@(Compare-Object $allowedKeys $actualKeys).Count -ne 0) {\n  throw 'Unexpected manifest fields; private metadata must not be published'\n}\n$expectedVersion = $env:EQNEDIT64_TAG.Substring('v'.Length)\n$actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash\n$actualVersion = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\n$pin = $env:EQNEDIT64_SIGNER_SHA256\nif ($pin -notmatch '^[0-9A-Fa-f]{64}$') { throw 'Signer SHA256 setting required' }\n$actualPin = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($signature.SignerCertificate.RawData))\nif ($actualPin -cne $pin.ToUpperInvariant()) { throw 'Signer certificate mismatch' }\n$store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')\ntry {\n  $store.Open('ReadWrite')\n  $store.Add($signature.SignerCertificate)\n} finally { $store.Close() }\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\nif ($signature.Status -ne 'Valid') { throw 'Invalid staged signature after pinned trust setup' }\n\nif ($manifest.schema -cne 'eqnedit64.staged-release.v1' -or\n    $manifest.tag -cne $env:EQNEDIT64_TAG -or\n    $manifest.version -cne $expectedVersion -or\n    $manifest.source_sha -cne $env:EQNEDIT64_SHA -or\n    $manifest.exe_sha256 -cne $actualHash -or\n    $actualVersion -cne $expectedVersion -or\n    $manifest.repository -cne $env:GITHUB_REPOSITORY) {\n  throw ('The staged signed EqnEdit64 does not match this tag. ' +\n    'It must be the executable compiled and signed from the exact ' +\n    'tagged commit, staged by the maintainer signing step before the release tag.')\n}\n\n$artifact = Join-Path $env:RUNNER_TEMP 'eqnedit64-signed-standalone'\nNew-Item -ItemType Directory -Path $artifact | Out-Null\nCopy-Item -LiteralPath $exe -Destination $artifact\nCopy-Item -LiteralPath $manifestPath -Destination $artifact\n$stagedChecksum = Get-Content -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS.txt') -Raw\nif ($stagedChecksum.Trim() -cne ($actualHash.ToLowerInvariant() + '  EqnEdit64.exe')) { throw 'Staged checksum mismatch' }\nCopy-Item -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS.txt') -Destination $artifact\n"
-      },
-      {
-        "name": "Reject development labels in staged release artifacts",
-        "run": "python tools/release_version.py --check\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n$releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'\npython tools/check_release_versions.py --artifact \"$releaseRoot/EqnEdit64.exe\" --artifact \"$releaseRoot/EqnEdit64.release.json\" --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
-      },
-      {
-        "name": "Verify final draft title notes and exact three assets before approval",
-        "run": "python tools/verify_draft_assets.py --repo $env:GITHUB_REPOSITORY --tag $env:EQNEDIT64_TAG --source-sha $env:EQNEDIT64_SHA --artifact-dir \"$env:RUNNER_TEMP/eqnedit64-signed-standalone\" --output $env:GITHUB_OUTPUT\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
-      }
-    ],
-    "build-wheels": [
-      {
-        "name": "Verify signed standalone artifact",
-        "run": "$directory = Join-Path $env:RUNNER_TEMP 'eqnedit64-release'\n$exe = Join-Path $directory 'EqnEdit64.exe'\n$checksums = Join-Path $directory 'SHA256SUMS.txt'\n$line = Get-Content -LiteralPath $checksums |\n  Where-Object { $_ -match 'EqnEdit64\\.exe$' } | Select-Object -First 1\nif (-not $line) { throw 'EqnEdit64.exe checksum is missing' }\n$expected = ($line -split '\\s+')[0].ToUpperInvariant()\n$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash\nif ($actual -ne $expected) {\n  throw \"SHA-256 mismatch: $actual != $expected\"\n}\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\n$pin = $env:EQNEDIT64_SIGNER_SHA256\nif ($pin -notmatch '^[0-9A-Fa-f]{64}$') { throw 'Signer SHA256 setting required' }\n$actualPin = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($signature.SignerCertificate.RawData))\nif ($actualPin -cne $pin.ToUpperInvariant()) { throw 'Signer certificate mismatch' }\n$store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')\ntry {\n  $store.Open('ReadWrite')\n  $store.Add($signature.SignerCertificate)\n} finally { $store.Close() }\n$signature = Get-AuthenticodeSignature -LiteralPath $exe\nif ($signature.Status -ne 'Valid') { throw 'Invalid staged signature after pinned trust setup' }\n\n\"EQNEDIT64_RELEASE_EXE=$exe\" |\n  Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8\n"
-      },
-      {
-        "name": "Install wheel build and version parser dependencies",
-        "run": "python -m pip install -r ci-requirements.txt\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
-      },
-      {
-        "name": "Verify generated release version text",
-        "run": "python tools/release_version.py --check\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
-      },
-      {
-        "name": "Validate tag and package versions",
-        "run": "$line = Select-String -LiteralPath python\\pyproject.toml `\n  -Pattern '^version\\s*=\\s*\"([^\"]+)\"$' | Select-Object -First 1\nif (-not $line) { throw 'eqnedit64 package version is missing' }\n$version = $line.Matches[0].Groups[1].Value\nif ($env:EQNEDIT64_TAG -cne \"v$version\") {\n  throw \"tag/package mismatch: $env:EQNEDIT64_TAG != v$version\"\n}\n"
-      },
-      {
-        "name": "Build wheel",
-        "run": "python -m build --wheel python\n"
-      },
-      {
-        "name": "Verify installed wheel outside the repository",
-        "run": "$wheel = Get-ChildItem python\\dist\\eqnedit64-*.whl |\n  Select-Object -First 1\n$target = Join-Path $env:RUNNER_TEMP 'eqnedit64-wheel-test'\npython -m pip install --target $target $wheel.FullName\n$env:PYTHONPATH = $target\nPush-Location $env:RUNNER_TEMP\ntry {\n  python \"$env:GITHUB_WORKSPACE\\python\\tests\\verify_installed.py\"\n} finally {\n  Pop-Location\n}\n"
-      },
-      {
-        "name": "Inspect exact built wheel and embedded executable before upload",
-        "run": "$wheel = Get-ChildItem python/dist/eqnedit64-*.whl | Select-Object -First 1\npython tools/check_release_versions.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n$version = \"${{ needs.qualify.outputs.tag }}\".Substring(1)\npython tools/check_release_wheels.py --wheel-dir python/dist --standalone $env:EQNEDIT64_RELEASE_EXE --version $version --source-sha \"${{ needs.qualify.outputs.sha }}\" --python-version \"${{ matrix.python-version }}\"\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\npython tests/check_public_names.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
-      }
-    ],
-    "audit-wheels": [
-      {
-        "name": "Bind all four wheels before requesting human approval",
-        "run": "python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version \"${EQNEDIT64_TAG#v}\" --source-sha \"$EQNEDIT64_SHA\" --report wheel-audit.json\nargs=(--artifact standalone/EqnEdit64.exe --artifact standalone/EqnEdit64.release.json)\nfor wheel in dist/*.whl; do args+=(--artifact \"$wheel\"); done\npython tools/check_release_versions.py \"${args[@]}\"\n"
-      }
-    ],
-    "publish": [
-      {
-        "name": "Recheck actual tag CI and context after human approval",
-        "run": "python tools/qualify_release.py --report postapproval-qualification.json"
-      },
-      {
-        "name": "Recheck downloaded CI tag context after approval",
-        "run": "python tools/qualify_release.py --context eqnedit64-ci-release-context/context.json --report postapproval-context.json"
-      },
-      {
-        "name": "Verify all draft assets before any publication",
-        "run": "python tools/verify_draft_assets.py --repo \"$GITHUB_REPOSITORY\" --tag \"$EQNEDIT64_TAG\" --source-sha \"$EQNEDIT64_SHA\" \\\n  --artifact-dir standalone --output \"$GITHUB_OUTPUT\"\n"
-      },
-      {
-        "name": "Reject development labels before publication",
-        "run": "set -euo pipefail\npython tools/release_version.py --check\nargs=(--artifact standalone/EqnEdit64.exe --artifact standalone/EqnEdit64.release.json --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html)\nfor wheel in dist/*.whl; do args+=(--artifact \"$wheel\"); done\npython tools/check_release_versions.py \"${args[@]}\"\n"
-      },
-      {
-        "name": "Bind all four wheels to the signed standalone and canonical Web blobs",
-        "run": "python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version \"${EQNEDIT64_TAG#v}\" --source-sha \"$EQNEDIT64_SHA\" --verify-report preapproval/wheel-audit.json\n"
-      },
-      {
-        "name": "Publish the preverified draft GitHub Release",
-        "run": "set -euo pipefail\nprintf '%s' '{\"draft\":false,\"prerelease\":false,\"make_latest\":\"true\"}' |\n  gh api --method PATCH \"repos/$GITHUB_REPOSITORY/releases/$DRAFT_RELEASE_ID\" --input - > /dev/null\n"
-      }
-    ]
+    },
+    "timeout-minutes": "120"
+  },
+  "preflight_step": {
+    "name": "Verify actual cp312 wheel naming before installation",
+    "working-directory": ".",
+    "run": "python tools/check_wheel_preflight.py --wheel-dir python/dist --standalone build_cmake/Release/EqnEdit64.exe --source-sha $env:GITHUB_SHA --report \"$env:RUNNER_TEMP/eqnedit64-wheel-name-preflight.json\"\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
   }
 }
