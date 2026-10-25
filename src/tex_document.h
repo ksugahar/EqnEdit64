@@ -1,7 +1,7 @@
 /*
  * tex_document.h -- TeX file envelope and paste normalization
  *
- * Eqnedit64 stores TeX.  This module deliberately knows nothing about the
+ * EqnEdit64 stores TeX.  This module deliberately knows nothing about the
  * editor window or the clipboard so opening, saving, and pasting can be tested
  * in a background process.
  */

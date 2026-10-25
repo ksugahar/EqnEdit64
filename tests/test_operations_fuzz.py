@@ -1,4 +1,4 @@
-"""Deterministic structural-operation stress test for Eqnedit64.
+"""Deterministic structural-operation stress test for EqnEdit64.
 
 This is intentionally headless: it drives the same Equation model used by the
 native canvas without moving the user's mouse or sending keys to Windows.

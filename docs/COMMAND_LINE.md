@@ -1,10 +1,10 @@
-# Eqnedit64 command line
+# EqnEdit64 command line
 
-Eqnedit64 is both a standalone editor and a one-step TeX converter. The public
+EqnEdit64 is both a standalone editor and a one-step TeX converter. The public
 converter syntax always has one input and one output:
 
 ```text
-Eqnedit64.exe INPUT OUTPUT
+EqnEdit64.exe INPUT OUTPUT
 ```
 
 No Python runtime, installer, ActiveX registration, or external TeX command is
@@ -42,19 +42,19 @@ for `slides`. The output word `png` is rejected with exit code 94. Use
 `clipboard-png` for clipboard output or a filename ending in `.png` for a file.
 
 ```powershell
-Eqnedit64.exe equation.tex office
-Eqnedit64.exe equation.tex slides
-Eqnedit64.exe equation.tex clipboard-png
-Eqnedit64.exe equation.tex equation.png
-Eqnedit64.exe equation.tex equation.emf
-Eqnedit64.exe clipboard clipboard-png
+EqnEdit64.exe equation.tex office
+EqnEdit64.exe equation.tex slides
+EqnEdit64.exe equation.tex clipboard-png
+EqnEdit64.exe equation.tex equation.png
+EqnEdit64.exe equation.tex equation.emf
+EqnEdit64.exe clipboard clipboard-png
 ```
 
 ## Editor launch and diagnostics
 
 - No arguments start the editor.
 - One `.tex` path opens that document.
-- If Explorer supplies two `.tex` paths, Eqnedit64 opens the first document and
+- If Explorer supplies two `.tex` paths, EqnEdit64 opens the first document and
   reports the choice in the status bar. It never treats the second `.tex` as an
   output image or overwrites it.
 - An invalid conversion output writes a diagnostic to standard error when a

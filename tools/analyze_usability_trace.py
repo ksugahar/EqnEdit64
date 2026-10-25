@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a privacy-aware LLM review bundle from an Eqnedit64 operation log.
+"""Build a privacy-aware LLM review bundle from an EqnEdit64 operation log.
 
 The deterministic detectors do not claim to decide what feels natural.  They
 locate evidence windows where an LLM can compare the event sequence, semantic
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 
-LOG_VERSION_RE = re.compile(r"Eqnedit64 operation log v(\d+)")
+LOG_VERSION_RE = re.compile(r"EqnEdit64 operation log v(\d+)")
 COMMAND_RE = re.compile(r"\\([A-Za-z]+)")
 ENVIRONMENT_RE = re.compile(r"\\begin\{([^}]+)\}")
 
@@ -46,7 +46,7 @@ class Candidate:
 
 
 def debug_unescape(text: str) -> str:
-    """Reverse Eqnedit64's tab-safe debug_escape representation."""
+    """Reverse EqnEdit64's tab-safe debug_escape representation."""
     output: list[str] = []
     index = 0
     escapes = {"t": "\t", "r": "\r", "n": "\n", "\\": "\\"}
@@ -102,7 +102,7 @@ def parse_operation_log_text(text: str) -> tuple[int, list[TraceEvent]]:
         raw_events.append((seq, fields[1], fields[2], details, state))
 
     if version not in (1, 2):
-        raise ValueError(f"unsupported Eqnedit64 operation-log version: {version}")
+        raise ValueError(f"unsupported EqnEdit64 operation-log version: {version}")
     if not raw_events:
         return version, []
 
@@ -386,7 +386,7 @@ def write_bundle(input_path: Path, output_path: Path, privacy: str) -> dict[str,
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build an LLM usability-review bundle from an Eqnedit64 operation log."
+        description="Build an LLM usability-review bundle from an EqnEdit64 operation log."
     )
     parser.add_argument("operation_log", type=Path)
     parser.add_argument("--output", "-o", type=Path, required=True)

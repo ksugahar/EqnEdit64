@@ -883,20 +883,20 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $app = if ($AppPath) {
     (Resolve-Path -LiteralPath $AppPath -ErrorAction Stop).Path
 } else {
-    Join-Path $projectRoot 'dist\Eqnedit64.exe'
+    Join-Path $projectRoot 'dist\EqnEdit64.exe'
 }
 $irfanView = (Join-Path $env:ProgramFiles 'IrfanView/i_view64.exe')
 $runId = [Guid]::NewGuid().ToString('N')
-$pptxOutput = "$env:TEMP\Eqnedit64-PowerPoint-paste-$runId.pptx"
-$powerPointPngOutput = "$env:TEMP\Eqnedit64-PowerPoint-paste-$runId.png"
+$pptxOutput = "$env:TEMP\EqnEdit64-PowerPoint-paste-$runId.pptx"
+$powerPointPngOutput = "$env:TEMP\EqnEdit64-PowerPoint-paste-$runId.png"
 $alignedPowerPointPngOutput =
-    "$env:TEMP\Eqnedit64-PowerPoint-aligned-paste-$runId.png"
-$pngOutput = "$env:TEMP\Eqnedit64-IrfanView-paste-$runId.png"
-$texclipPngOutput = "$env:TEMP\Eqnedit64-texclip-paste-$runId.png"
-$cliTexInput = "$env:TEMP\Eqnedit64-cli-input-$runId.tex"
-$alignedCliTexInput = "$env:TEMP\Eqnedit64-aligned-cli-input-$runId.tex"
-$tableCliTexInput = "$env:TEMP\Eqnedit64-table-cli-input-$runId.tex"
-$tablePowerPointPngOutput = "$env:TEMP\Eqnedit64-table-paste-$runId.png"
+    "$env:TEMP\EqnEdit64-PowerPoint-aligned-paste-$runId.png"
+$pngOutput = "$env:TEMP\EqnEdit64-IrfanView-paste-$runId.png"
+$texclipPngOutput = "$env:TEMP\EqnEdit64-texclip-paste-$runId.png"
+$cliTexInput = "$env:TEMP\EqnEdit64-cli-input-$runId.tex"
+$alignedCliTexInput = "$env:TEMP\EqnEdit64-aligned-cli-input-$runId.tex"
+$tableCliTexInput = "$env:TEMP\EqnEdit64-table-cli-input-$runId.tex"
+$tablePowerPointPngOutput = "$env:TEMP\EqnEdit64-table-paste-$runId.png"
 # A delimiter space after a control word is valid TeX and proves that the
 # public file-based CLI normalises the supplied equation rather than copying a
 # private fixed fixture.
@@ -1027,7 +1027,7 @@ try {
         -ArgumentList @($cliTexInput, 'office') `
         -WorkingDirectory (Split-Path -Parent $app) -WindowStyle Hidden -Wait -PassThru
     if ($publisher.ExitCode -ne 0) {
-        throw "Eqnedit64 clipboard publication failed: $($publisher.ExitCode)"
+        throw "EqnEdit64 clipboard publication failed: $($publisher.ExitCode)"
     }
 
     $latexFormat = [EqneditClipboardNative]::RegisterClipboardFormat('LaTeX')
@@ -1157,7 +1157,7 @@ try {
         -ArgumentList @($alignedCliTexInput, 'office') `
         -WorkingDirectory (Split-Path -Parent $app) -WindowStyle Hidden -Wait -PassThru
     if ($alignedPublisher.ExitCode -ne 0) {
-        throw "Eqnedit64 aligned clipboard publication failed: $($alignedPublisher.ExitCode)"
+        throw "EqnEdit64 aligned clipboard publication failed: $($alignedPublisher.ExitCode)"
     }
     $alignedOfficeHtml = Read-ClipboardUtf8 $htmlFormat
     $alignedBranch = [regex]::Match($alignedOfficeHtml,
@@ -1287,7 +1287,7 @@ try {
         $math315 = $range315.MathZones()
         if ($math315.Length -le 0) { throw "3.1.5 paste is not editable math: $($fixture315.id)" }
         $text315 = [string]$range315.Text
-        $image315 = "$env:TEMP\Eqnedit64-315-$runId-$($fixture315.id).png"
+        $image315 = "$env:TEMP\EqnEdit64-315-$runId-$($fixture315.id).png"
         $shape315.Export($image315, 2)
         $null = Assert-ImageHasInk $image315 "3.1.5 $($fixture315.id)"
         $measure315 = Get-PowerPoint315Positions $range315 $shape315 $image315 $fixture315.id
@@ -1362,7 +1362,7 @@ try {
         -ArgumentList @($cliTexInput, 'slides') `
         -WorkingDirectory (Split-Path -Parent $app) -WindowStyle Hidden -Wait -PassThru
     if ($googlePublisher.ExitCode -ne 0) {
-        throw "Eqnedit64 Google Slides clipboard publication failed: $($googlePublisher.ExitCode)"
+        throw "EqnEdit64 Google Slides clipboard publication failed: $($googlePublisher.ExitCode)"
     }
     $pngFormat = [EqneditClipboardNative]::RegisterClipboardFormat('PNG')
     $htmlFormat = [EqneditClipboardNative]::RegisterClipboardFormat('HTML Format')
@@ -1405,7 +1405,7 @@ try {
         -ArgumentList @('clipboard', 'clipboard-png') `
         -WorkingDirectory (Split-Path -Parent $app) -WindowStyle Hidden -Wait -PassThru
     if ($texclip.ExitCode -ne 0) {
-        throw "Eqnedit64 clipboard-to-PNG conversion failed: $($texclip.ExitCode)"
+        throw "EqnEdit64 clipboard-to-PNG conversion failed: $($texclip.ExitCode)"
     }
     if (-not [EqneditClipboardNative]::IsClipboardFormatAvailable($pngFormat) -or
         -not [EqneditClipboardNative]::IsClipboardFormatAvailable(17) -or
@@ -1426,7 +1426,7 @@ try {
         -ArgumentList 'clipboard clipboard-png' `
         -WorkingDirectory (Split-Path -Parent $app) -WindowStyle Hidden -Wait -PassThru
     if ($texclip.ExitCode -ne 0) {
-        throw "Eqnedit64 --texclip registered LaTeX conversion failed: $($texclip.ExitCode)"
+        throw "EqnEdit64 --texclip registered LaTeX conversion failed: $($texclip.ExitCode)"
     }
     $texclipRawPng = Read-ClipboardBytes $pngFormat
     $texclipRawHash = [Convert]::ToHexString(

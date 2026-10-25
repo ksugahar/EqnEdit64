@@ -1,7 +1,7 @@
-# Eqnedit64
+# EqnEdit64
 
-Source version: **3.1.7**.
-Eqnedit64 is a portable Windows TeX equation editor with native, Python and Web interfaces.
+Source version: **3.1.8**.
+EqnEdit64 is a portable Windows TeX equation editor with native, Python and Web interfaces.
 
 ## Build and use
 
@@ -15,7 +15,7 @@ ctest --test-dir build_cmake -C Release --output-on-failure
 
 Set `EQNEDIT64_RELEASE_EXE` to the verified executable and run
 `python -m build --wheel python` for wheels. Signing is a separate controlled step.
-`Eqnedit64.exe input.tex output.pptxmath` exports editable Office OOXML math.
+`EqnEdit64.exe input.tex output.pptxmath` exports editable Office OOXML math.
 The Python helper is `eqnedit64.export_powerpoint_math(tex, output)`.
 Unsupported conversion raises an error.
 

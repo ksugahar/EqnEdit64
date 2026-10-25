@@ -65,7 +65,7 @@ def test_hosted_runtime_and_artifact_transport_contracts():
 
 def test_privileged_release_checkouts_do_not_persist_credentials():
     data = workflow("release-eqnedit64-pypi.yml")
-    for name in ("signed-standalone", "publish"):
+    for name in ("signed-standalone", "build-wheels", "publish"):
         checkouts = [step for step in data["jobs"][name]["steps"]
                      if step.get("uses", "").startswith("actions/checkout@")]
         assert checkouts and all(step["with"]["persist-credentials"] is False for step in checkouts)
@@ -141,13 +141,13 @@ def test_preflight_preserves_and_compares_exact_checksum_bytes(tmp_path, monkeyp
     digest = hashlib.sha256(executable).hexdigest()
     manifest = {"schema": "eqnedit64.staged-release.v1", "repository": "example/editor", "tag": "v3.1.6",
                 "version": "3.1.6", "source_sha": "a" * 40, "exe_sha256": digest}
-    payloads = {"Eqnedit64.exe": executable, "Eqnedit64.release.json": json.dumps(manifest).encode(),
-                "SHA256SUMS.txt": (digest + "  Eqnedit64.exe").encode() + ending}
+    payloads = {"EqnEdit64.exe": executable, "EqnEdit64.release.json": json.dumps(manifest).encode(),
+                "SHA256SUMS.txt": (digest + "  EqnEdit64.exe").encode() + ending}
     assets = []
     for index, (name, data) in enumerate(payloads.items(), 1):
         (tmp_path / name).write_bytes(data)
         assets.append({"id": index, "name": name, "size": len(data), "state": "uploaded"})
-    monkeypatch.setattr(mod, "fetch_release", lambda *args: {"id": 42, "assets": assets})
+    monkeypatch.setattr(mod, "fetch_release", lambda *args: {"id": 42, "assets": assets, "name": "EqnEdit64 3.1.6", "body": "EqnEdit64 3.1.6 signed standalone release."})
     def response(url, binary=False):
         entry = next(a for a in assets if str(a["id"]) == url.rsplit("/", 1)[1])
         return io.BytesIO(payloads[entry["name"]])
@@ -162,3 +162,20 @@ def test_preflight_preserves_and_compares_exact_checksum_bytes(tmp_path, monkeyp
     assets[2]["size"] -= 1
     assets.append({"id": 4, "name": "unexpected.txt", "size": 0, "state": "uploaded"})
     with pytest.raises(ValueError): mod.verify("example/editor", "v3.1.6", "a" * 40, tmp_path)
+
+
+@pytest.mark.parametrize("name,body", [("wrong", "EqnEdit64 3.1.7"), ("EqnEdit64 3.1.7", ""), ("EqnEdit64 3.1.7", "Release 3.1.6"), ("EqnEdit64 3.1.7", "Draft 3.1.7"), ("EqnEdit64 3.1.7", "3.1.7 staging"), ("EqnEdit64 3.1.7", "3.1.7 not published")])
+def test_release_metadata_rejects_unfinished_notes(name, body):
+    with pytest.raises(ValueError):
+        verifier().validate_release_metadata({"name": name, "body": body}, "3.1.7")
+
+
+def test_release_metadata_accepts_final_notes_and_wheel_gate_precedes_upload():
+    verifier().validate_release_metadata({"name": "EqnEdit64 3.1.7", "body": "EqnEdit64 3.1.7 signed standalone release."}, "3.1.7")
+    jobs = workflow("release-eqnedit64-pypi.yml")["jobs"]
+    steps = jobs["publish"]["steps"]
+    gate = next(i for i, step in enumerate(steps) if "check_release_wheels.py" in step.get("run", ""))
+    upload = next(i for i, step in enumerate(steps) if step.get("uses", "").startswith("pypa/"))
+    assert gate < upload and not steps[gate].get("if")
+    matrix_gate = next(s for s in jobs["build-wheels"]["steps"] if "check_release_wheels.py" in s.get("run", ""))
+    assert '--python-version "${{ matrix.python-version }}"' in matrix_gate["run"]

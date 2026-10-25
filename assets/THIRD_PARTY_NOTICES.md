@@ -1,6 +1,6 @@
 # Third-party notices
 
-Eqnedit64's application icon incorporates the **Superscript** glyph from
+EqnEdit64's application icon incorporates the **Superscript** glyph from
 [Bootstrap Icons](https://icons.getbootstrap.com/icons/superscript/).
 
 Bootstrap Icons is Copyright (c) 2019-2024 The Bootstrap Authors and is
@@ -8,11 +8,11 @@ licensed under the MIT License. The full license is included in BOOTSTRAP-ICONS-
 <https://github.com/twbs/icons/blob/main/LICENSE>.
 
 The icon's background, colors, composition, and rasterization are specific to
-Eqnedit64.
+EqnEdit64.
 
 ## Latin Modern Math
 
-Eqnedit64 embeds **Eqnedit Math** (`eqnedit-math.ttf`), a modified TrueType-outline
+EqnEdit64 embeds **Eqnedit Math** (`eqnedit-math.ttf`), a modified TrueType-outline
 derivative of Latin Modern Math, maintained upstream by GUST, the Polish TeX
 Users Group. The original `latinmodern-math.otf` remains in the source tree
 for reproducible conversion and diagnosis; neither native resource embeds it.

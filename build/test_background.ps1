@@ -1,22 +1,22 @@
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$app = Join-Path $PSScriptRoot 'Eqnedit64.exe'
-$portableApp = Join-Path $projectRoot 'dist\Eqnedit64.exe'
+$app = Join-Path $PSScriptRoot 'EqnEdit64.exe'
+$portableApp = Join-Path $projectRoot 'dist\EqnEdit64.exe'
 $unitTest = Join-Path $PSScriptRoot 'test_tex_document.exe'
-$operationOutput = (Join-Path $env:TEMP 'Eqnedit64-operation-test.tex')
-$operationLogOutput = (Join-Path $env:TEMP 'Eqnedit64-operation-log-test.log')
-$usabilityBundleOutput = (Join-Path $env:TEMP 'Eqnedit64-usability-bundle-test.json')
+$operationOutput = (Join-Path $env:TEMP 'EqnEdit64-operation-test.tex')
+$operationLogOutput = (Join-Path $env:TEMP 'EqnEdit64-operation-log-test.log')
+$usabilityBundleOutput = (Join-Path $env:TEMP 'EqnEdit64-usability-bundle-test.json')
 
 if (-not (Test-Path -LiteralPath $app)) {
-    throw "Eqnedit64.exe is missing. Run build_eqnedit64.bat first."
+    throw "EqnEdit64.exe is missing. Run build_eqnedit64.bat first."
 }
 if (-not (Test-Path -LiteralPath $portableApp)) {
-    throw "Portable Eqnedit64.exe is missing. Run build_eqnedit64.bat first."
+    throw "Portable EqnEdit64.exe is missing. Run build_eqnedit64.bat first."
 }
 $releaseFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $portableApp) -File)
-if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -ne 'Eqnedit64.exe') {
-    throw "dist must contain only Eqnedit64.exe: $($releaseFiles.Name -join ', ')"
+if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -ne 'EqnEdit64.exe') {
+    throw "dist must contain only EqnEdit64.exe: $($releaseFiles.Name -join ', ')"
 }
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $app).Hash -ne
     (Get-FileHash -Algorithm SHA256 -LiteralPath $portableApp).Hash) {
@@ -29,43 +29,43 @@ if ($LASTEXITCODE -ne 0) { throw "TeX document tests failed: $LASTEXITCODE" }
 
 $self = Start-Process -FilePath $app -ArgumentList '--self-test' `
     -WindowStyle Hidden -Wait -PassThru
-if ($self.ExitCode -ne 0) { throw "Eqnedit64 self-test failed: $($self.ExitCode)" }
+if ($self.ExitCode -ne 0) { throw "EqnEdit64 self-test failed: $($self.ExitCode)" }
 
 $statusLayout = Start-Process -FilePath $app -ArgumentList '--status-layout-test' `
     -WindowStyle Hidden -Wait -PassThru
 if ($statusLayout.ExitCode -ne 0) {
-    throw "Eqnedit64 hidden status-layout test failed: $($statusLayout.ExitCode)"
+    throw "EqnEdit64 hidden status-layout test failed: $($statusLayout.ExitCode)"
 }
 
 $visualScale = Start-Process -FilePath $app -ArgumentList '--visual-scale-test' `
     -WindowStyle Hidden -Wait -PassThru
 if ($visualScale.ExitCode -ne 0) {
-    throw "Eqnedit64 hidden visual-scale test failed: $($visualScale.ExitCode)"
+    throw "EqnEdit64 hidden visual-scale test failed: $($visualScale.ExitCode)"
 }
 
 $uiInteraction = Start-Process -FilePath $app -ArgumentList '--ui-interaction-test' `
     -WindowStyle Hidden -Wait -PassThru
 if ($uiInteraction.ExitCode -ne 0) {
-    throw "Eqnedit64 hidden UI-interaction test failed: $($uiInteraction.ExitCode)"
+    throw "EqnEdit64 hidden UI-interaction test failed: $($uiInteraction.ExitCode)"
 }
 
 $operation = Start-Process -FilePath $app `
     -ArgumentList @('--operation-test', $operationOutput) `
     -WindowStyle Hidden -Wait -PassThru
 if ($operation.ExitCode -ne 0) {
-    throw "Eqnedit64 operation test failed: $($operation.ExitCode)"
+    throw "EqnEdit64 operation test failed: $($operation.ExitCode)"
 }
 
 $operationLog = Start-Process -FilePath $app `
     -ArgumentList @('--operation-log-test', $operationLogOutput) `
     -WindowStyle Hidden -Wait -PassThru
 if ($operationLog.ExitCode -ne 0) {
-    throw "Eqnedit64 operation-log test failed: $($operationLog.ExitCode)"
+    throw "EqnEdit64 operation-log test failed: $($operationLog.ExitCode)"
 }
 
 $logText = [IO.File]::ReadAllText($operationLogOutput, [Text.UTF8Encoding]::new($true))
 $logRequirements = @(
-    'Eqnedit64 operation log v2',
+    'EqnEdit64 operation log v2',
     'debug.start',
     'test.keyboard',
     'user.marker',
@@ -175,7 +175,7 @@ for ($at = [int]$debugOffset; $at + 28 -le $debugOffset + $debugSize; $at += 28)
 }
 if (-not $hasCodeView) { throw 'Executable has no RSDS CodeView debug record.' }
 $commit = (& git -C $projectRoot rev-parse --short HEAD).Trim()
-foreach ($symbol in @('Eqnedit64.pdb', 'Eqnedit64.map')) {
+foreach ($symbol in @('EqnEdit64.pdb', 'EqnEdit64.map')) {
     $symbolPath = Join-Path $projectRoot ("symbols\$commit\$symbol")
     if (-not (Test-Path -LiteralPath $symbolPath -PathType Leaf)) {
         throw "Archived release symbol is missing: $symbolPath"
@@ -185,10 +185,10 @@ foreach ($symbol in @('Eqnedit64.pdb', 'Eqnedit64.map')) {
 $version = (Get-Item -LiteralPath $app).VersionInfo
 $expectedVersion = (& python (Join-Path $projectRoot 'tools/release_version.py') --print-version)
 if ($LASTEXITCODE -ne 0 -or $expectedVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
-    throw 'Could not read the canonical Eqnedit64 release version.'
+    throw 'Could not read the canonical EqnEdit64 release version.'
 }
 $expectedVersion = $expectedVersion.Trim()
-if ($version.ProductName -ne 'Eqnedit64' -or
+if ($version.ProductName -ne 'EqnEdit64' -or
     $version.ProductVersion -notlike "$expectedVersion*") {
     throw "Version resource is missing or invalid."
 }
@@ -220,7 +220,7 @@ Remove-Item -LiteralPath $operationLogOutput -Force
 Remove-Item -LiteralPath $usabilityBundleOutput -Force
 
 Write-Host 'PASS: TeX paste/envelope unit tests'
-Write-Host 'PASS: hidden Eqnedit64 self-test'
+Write-Host 'PASS: hidden EqnEdit64 self-test'
 Write-Host 'PASS: hidden native status-bar parts, font-height, and simple-mode test'
 Write-Host 'PASS: offscreen 96/120/144/192 dpi equation, caret, selection, and font visibility'
 Write-Host 'PASS: hidden WM_CHAR, WM_KEYDOWN, WM_COMMAND, source, and status interaction test'

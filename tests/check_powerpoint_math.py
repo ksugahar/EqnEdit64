@@ -1,4 +1,4 @@
-"""Native corpus/CLI/PPTX evidence. Run only in the isolated Eqnedit64 CI lane."""
+"""Native corpus/CLI/PPTX evidence. Run only in the isolated EqnEdit64 CI lane."""
 from __future__ import annotations
 import argparse
 import hashlib

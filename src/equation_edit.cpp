@@ -174,7 +174,7 @@ bool is_digit(char c)  { return c >= '0' && c <= '9'; }
 
 bool is_automatic_function_name(const std::string& name) {
     /* The function string resources 11000--11038, plus common engineering
-     * operators already understood by Eqnedit64's TeX emitter/parser. */
+     * operators already understood by EqnEdit64's TeX emitter/parser. */
     static const char* kNames[] = {
         "Im", "Pr", "Re", "arg", "arcsin", "arccos", "arctan",
         "cosh", "cos", "coth", "cot", "cov", "csc", "deg", "det",
@@ -2227,7 +2227,7 @@ const std::vector<Equation::SequenceBinding>& Equation::sequence_shortcuts() {
         {'T', 'M', false, "template.matrix3x3",  "3 by 3 matrix"},
         {'T', 'U', false, "template.under",      "annotation underneath"},
 
-        /* Eqnedit64 additions that do not replace an old mnemonic. */
+        /* EqnEdit64 additions that do not replace an old mnemonic. */
         {'T', 'D', false, "template.iint",       "double integral"},
         {'T', 'O', false, "template.oint",       "contour integral"},
         {'T', '2', false, "template.matrix2x2",  "2 by 2 matrix"},

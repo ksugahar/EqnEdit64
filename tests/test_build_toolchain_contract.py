@@ -1,4 +1,4 @@
-"""Guard all Eqnedit64 native entry points against an older toolchain bypass."""
+"""Guard all EqnEdit64 native entry points against an older toolchain bypass."""
 from pathlib import Path
 import re
 

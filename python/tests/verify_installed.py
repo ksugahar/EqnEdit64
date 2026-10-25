@@ -1,4 +1,4 @@
-"""Post-install contract for an Eqnedit64 wheel."""
+"""Post-install contract for an EqnEdit64 wheel."""
 from __future__ import annotations
 
 from pathlib import Path

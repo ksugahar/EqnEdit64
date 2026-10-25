@@ -1,6 +1,6 @@
 # Third-party notices
 
-Eqnedit64 has no Python runtime package dependencies.
+EqnEdit64 has no Python runtime package dependencies.
 Build requirements are declared in pyproject.toml.
 The compiled extension incorporates pybind11 headers (BSD-3-Clause).
 Copyright (c) 2016 Wenzel Jakob. The complete redistribution notice is

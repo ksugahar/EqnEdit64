@@ -1,4 +1,4 @@
-# Eqnedit64 ショートカット
+# EqnEdit64 ショートカット
 
 ## 覚え方
 
@@ -13,7 +13,7 @@
 ## パレットバー（マウス）
 
 ショートカットを覚えていなくても、**すべての記号と構造は2クリックで入る**。
-Eqnedit64と同じ考え方で、ツールバーは目録そのものになっている。
+EqnEdit64と同じ考え方で、ツールバーは目録そのものになっている。
 
 - 1段目 = 分類タブ: 基本 / 解析 / 集合・記号 / 幾何 / ギリシャ
 - 2段目 = 選択分類のパレット（最大5個）
@@ -78,7 +78,7 @@ GUI／TeXの入力モードや専用の切替キーはありません。
 
 ## `Ctrl+T` テンプレート
 
-Eqnedit64キーを先に示します。
+EqnEdit64キーを先に示します。
 
 | 次のキー | 動作 |
 |---|---|
@@ -91,7 +91,7 @@ Eqnedit64キーを先に示します。
 | `M` | 3×3行列 |
 | `U` | 下側の注記（TeX `\underset`） |
 
-Eqnedit64ではさらに次を使えます。
+EqnEdit64ではさらに次を使えます。
 
 | 次のキー | 動作 |
 |---|---|
@@ -129,7 +129,7 @@ Eqnedit64ではさらに次を使えます。
 
 ## 入力スタイルと配置
 
-Eqnedit64と同じく、`Ctrl+Shift++`（`+` が出るキー）は数学、`Ctrl+Shift+E` は
+EqnEdit64と同じく、`Ctrl+Shift++`（`+` が出るキー）は数学、`Ctrl+Shift+E` は
 文字列、`Ctrl+Shift+F` は関数、`Ctrl+Shift+I` は変数、`Ctrl+Shift+G` は
 ギリシャ文字、`Ctrl+Shift+B` は行列・ベクトル入力へ切り替えます。
 
@@ -137,7 +137,7 @@ Eqnedit64と同じく、`Ctrl+Shift++`（`+` が出るキー）は数学、`Ctrl
 > 縮小になります。縮小には他の代替がないため、数学スタイルは `+` が出るキー
 > （`;` のキー）を使ってください。英語キーボードでは `Ctrl+Shift+=` と
 > `Ctrl+Shift++` は同じ打鍵です。この対応は
-> `Eqnedit64.exe --ui-interaction-test` が実際のキー経路で検査します。
+> `EqnEdit64.exe --ui-interaction-test` が実際のキー経路で検査します。
 現在のスタイルはステータス欄に表示され、保存時にはTeXの構造へ変換されます。
 
 `Ctrl+Shift+L` / `Ctrl+Shift+C` / `Ctrl+Shift+R` はキャンバス上の
@@ -162,7 +162,7 @@ Eqnedit64と同じく、`Ctrl+Shift++`（`+` が出るキー）は数学、`Ctrl
 
 ## コマンドラインからの変換
 
-`Eqnedit64.exe INPUT OUTPUT`を使います。PNGクリップボードは`clipboard-png`、
+`EqnEdit64.exe INPUT OUTPUT`を使います。PNGクリップボードは`clipboard-png`、
 PNGファイルは`.png`パスです。旧`--copy-*` / `--render-*` / `--texclip` /
 `--clipboard-tex-to-png`と出力名`png`は終了コード94で拒否します。
 `powerpoint` / `word` / `google-slides`は現行の説明的な出力先名です。

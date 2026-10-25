@@ -41,8 +41,8 @@ def row(
 
 def main() -> None:
     text = "\n".join([
-        "\ufeff# Eqnedit64 operation log v2",
-        row(1, 0, "debug.start", "Eqnedit64 3.0.7 path=redacted"),
+        "\ufeff# EqnEdit64 operation log v2",
+        row(1, 0, "debug.start", "EqnEdit64 3.0.7 path=redacted"),
         row(2, 100, "template.frac", latex="\\\\frac{}{}"),
         row(3, 500, "edit.undo", latex="x"),
         row(4, 600, "caret.right", "shift=0 changed=1"),
@@ -81,7 +81,7 @@ def main() -> None:
     assert any(event["state"].get("latex") == "\\frac{}{}" for event in full_contexts)
 
     v1 = "\n".join([
-        "# Eqnedit64 operation log v1",
+        "# EqnEdit64 operation log v1",
         "1\t2026-08-21 23:59:59.900\ttext.insert\tx\tcaret=root:1"
         "\tselection=<none>\tdirty=1\tlatex=x",
         "2\t2026-08-22 00:00:00.100\tedit.undo\tcaret=root:0"

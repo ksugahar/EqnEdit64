@@ -124,9 +124,9 @@ def tex_side(latex, name, workdir):
 
 
 def canvas_side(latex, name, workdir):
-    exe = os.path.join(_ROOT, "build", "Eqnedit64.exe")
+    exe = os.path.join(_ROOT, "build", "EqnEdit64.exe")
     if not os.path.exists(exe):
-        exe = os.path.join(_ROOT, "dist", "Eqnedit64.exe")
+        exe = os.path.join(_ROOT, "dist", "EqnEdit64.exe")
     png = os.path.join(workdir, "canvas%d.png" % (abs(hash(name)) % 100000))
     source = os.path.splitext(png)[0] + ".tex"
     with open(source, "w", encoding="utf-8") as stream:

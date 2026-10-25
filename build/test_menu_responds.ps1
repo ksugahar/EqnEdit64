@@ -17,13 +17,13 @@ $root = Split-Path -Parent $PSScriptRoot
 $exe = if ($AppPath) {
     (Resolve-Path -LiteralPath $AppPath -ErrorAction Stop).Path
 } else {
-    Join-Path $root 'build\Eqnedit64.exe'
+    Join-Path $root 'build\EqnEdit64.exe'
 }
 if (-not $AppPath -and -not (Test-Path $exe)) {
-    $exe = Join-Path $root 'dist\Eqnedit64.exe'
+    $exe = Join-Path $root 'dist\EqnEdit64.exe'
 }
 if (-not (Test-Path $exe)) {
-    Write-Output 'skip  Eqnedit64.exe has not been built'
+    Write-Output 'skip  EqnEdit64.exe has not been built'
     exit 0
 }
 

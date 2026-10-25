@@ -1,13 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
-REM Build the native 64-bit Eqnedit64 application.
+REM Build the native 64-bit EqnEdit64 application.
 REM ASCII ONLY: cmd.exe reads batch files using the active ANSI code page.
 
 call "%~dp0select_vs2022.bat"
 if errorlevel 1 exit /b 1
 
 cd /d "%~dp0.."
-echo [INFO] building build\Eqnedit64_asan.exe
+echo [INFO] building build\EqnEdit64_asan.exe
 
 REM Stamp the build with its exact source revision.
 set "STAMP=unknown"
@@ -17,21 +17,21 @@ for /f "usebackq delims=" %%D in (`pwsh -NoProfile -Command "(Get-Date).ToString
 >> src\build_stamp.h echo #define EQNEDIT64_BUILD_COMMIT "!STAMP!"
 >> src\build_stamp.h echo #define EQNEDIT64_BUILD_TIME "!BUILT!"
 
-rc /nologo /fo build\Eqnedit64.res src\eqnedit64.rc
-if errorlevel 1 ( echo [ERROR] Eqnedit64 resources failed & exit /b 1 )
+rc /nologo /fo build\EqnEdit64.res src\eqnedit64.rc
+if errorlevel 1 ( echo [ERROR] EqnEdit64 resources failed & exit /b 1 )
 
 cl /nologo /O2 /W4 /WX /EHsc /MT /fsanitize=address /Zi /std:c++17 /utf-8 ^
    /D_CRT_SECURE_NO_WARNINGS /DUNICODE /D_UNICODE /I src ^
    /TP src\eqnedit64_app.cpp src\equation_edit.cpp src\equation_render.cpp ^
        src\tex_parser.cpp src\equation_node.cpp src\latex_emitter.cpp ^
        src\mathml_emitter.cpp src\office_html.cpp src\math_symbols.cpp src\palettes.cpp src\tex_document.cpp ^
-   /Fe:build\Eqnedit64_asan.exe /Fo:build\ /Fd:build\Eqnedit64.pdb ^
+   /Fe:build\EqnEdit64_asan.exe /Fo:build\ /Fd:build\EqnEdit64.pdb ^
    /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib comdlg32.lib shell32.lib ^
-         ole32.lib imm32.lib windowscodecs.lib build\Eqnedit64.res
-if errorlevel 1 ( echo [ERROR] Eqnedit64 build failed & exit /b 1 )
+         ole32.lib imm32.lib windowscodecs.lib build\EqnEdit64.res
+if errorlevel 1 ( echo [ERROR] EqnEdit64 build failed & exit /b 1 )
 
-if not exist build\Eqnedit64_asan.exe (
-    echo [ERROR] build\Eqnedit64_asan.exe was not produced
+if not exist build\EqnEdit64_asan.exe (
+    echo [ERROR] build\EqnEdit64_asan.exe was not produced
     exit /b 1
 )
 REM MSVC ASan uses an LLVM-named runtime even when compiled with cl.exe.
@@ -50,4 +50,4 @@ if not exist "!ASAN_RUNTIME!" (
 )
 copy /y "!ASAN_RUNTIME!" "build\clang_rt.asan_dynamic-x86_64.dll" >nul
 if errorlevel 1 ( echo [ERROR] ASan runtime staging failed & exit /b 1 )
-echo [OK] build\Eqnedit64_asan.exe
+echo [OK] build\EqnEdit64_asan.exe

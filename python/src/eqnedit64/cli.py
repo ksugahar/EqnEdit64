@@ -1,4 +1,4 @@
-"""Console launcher for the bundled standalone Eqnedit64 application."""
+"""Console launcher for the bundled standalone EqnEdit64 application."""
 from __future__ import annotations
 
 import subprocess
@@ -8,7 +8,7 @@ from .api import backend_path
 
 
 _HELP = """\
-Eqnedit64 - TeX equation editor and converter
+EqnEdit64 - TeX equation editor and converter
 
 Usage:
   eqnedit64

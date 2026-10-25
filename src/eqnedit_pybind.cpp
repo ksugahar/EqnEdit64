@@ -1,4 +1,4 @@
-/* Headless test/programming surface for Eqnedit64's TeX editing core. */
+/* Headless test/programming surface for EqnEdit64's TeX editing core. */
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -35,7 +35,7 @@ std::string normalize_tree(const std::string& tex) {
 }  // namespace
 
 PYBIND11_MODULE(eqnedit_core, module) {
-    module.doc() = "Eqnedit64 TeX parser, structural editor, and renderer";
+    module.doc() = "EqnEdit64 TeX parser, structural editor, and renderer";
     module.attr("MAX_NESTING_DEPTH") = eqnedit::kMaxNestingDepth;
 
     py::class_<eqnedit::SvgStyle>(module, "SvgStyle")

@@ -8,9 +8,9 @@ build-backend = "release_backend"
 backend-path = ["build_backend"]
 
 [project]
-name = "eqnedit64"
-version = "3.1.7"
-description = "Fast TeX equation editing, rendering, and Office clipboard tools"
+name = "EqnEdit64"
+version = "3.1.8"
+description = "TeX equation tools with a signed standalone Windows EXE and Office clipboard support"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0 AND MIT AND BSD-3-Clause AND LicenseRef-GUST-Font"
@@ -34,9 +34,9 @@ test = ["build==1.6.1", "pytest==9.1.1"]
 render-test = ["pymupdf>=1.24.3"]
 
 [project.urls]
-Homepage = "https://github.com/ksugahar/eqnedit64"
-Repository = "https://github.com/ksugahar/eqnedit64"
-Issues = "https://github.com/ksugahar/eqnedit64/issues"
+Homepage = "https://github.com/ksugahar/EqnEdit64"
+Repository = "https://github.com/ksugahar/EqnEdit64"
+Issues = "https://github.com/ksugahar/EqnEdit64/issues"
 
 [project.scripts]
 eqnedit64 = "eqnedit64.cli:main"

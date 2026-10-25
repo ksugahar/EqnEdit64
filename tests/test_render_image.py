@@ -8,7 +8,7 @@ canvas -- it goes through different code, and a viewer that lacks Cambria Math
 substitutes a differently shaped radical, which is how one "fixed" render was
 read as still broken.
 
-So this renders through the real GDI path, via `Eqnedit64.exe INPUT.tex OUTPUT.png`,
+So this renders through the real GDI path, via `EqnEdit64.exe INPUT.tex OUTPUT.png`,
 and asserts properties of the ink that do not depend on the font: a rule that
 continues a glyph must not have a gap in it, a fraction bar must reach across
 both of its parts, and nothing may be clipped at the edge of the image.
@@ -37,8 +37,8 @@ INK = 128          # a pixel darker than this counts as ink
 # while the build still reports success.  Testing the stale copy is how a
 # regression once looked like a pass.  `dist == build` is checked separately
 # by the release gate, which is where that belongs.
-EXE_CANDIDATES = [os.path.join(_ROOT, "build", "Eqnedit64.exe"),
-                  os.path.join(_ROOT, "dist", "Eqnedit64.exe")]
+EXE_CANDIDATES = [os.path.join(_ROOT, "build", "EqnEdit64.exe"),
+                  os.path.join(_ROOT, "dist", "EqnEdit64.exe")]
 
 
 def executable():
@@ -103,7 +103,7 @@ class Render:
 def main() -> int:
     exe = executable()
     if exe is None:
-        print("skip  Eqnedit64.exe has not been built")
+        print("skip  EqnEdit64.exe has not been built")
         return 0
 
     failures = []

@@ -1,8 +1,8 @@
-name: Release Eqnedit64 to PyPI
+name: Release EqnEdit64 to PyPI
 'on':
   workflow_run:
     workflows:
-    - Eqnedit64
+    - EqnEdit64
     types:
     - completed
 permissions:
@@ -17,14 +17,14 @@ jobs:
       sha: ${{ steps.context.outputs.sha }}
       tag: ${{ steps.context.outputs.tag }}
     steps:
-    - name: Download exact Eqnedit64 CI ref context
+    - name: Download exact EqnEdit64 CI ref context
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: eqnedit64-ci-release-context
         path: eqnedit64-ci-release-context
         run-id: ${{ github.event.workflow_run.id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Verify triggering CI ran on an Eqnedit64 release tag
+    - name: Verify triggering CI ran on an EqnEdit64 release tag
       id: context
       env:
         SHA: ${{ github.event.workflow_run.head_sha }}
@@ -41,12 +41,12 @@ jobs:
             "eqnedit64-ci-release-context/context.json"
         ).read_text(encoding="utf-8"))
         if context.get("schema") != "eqnedit64.ci-release-context.v1":
-            print("::error::Unknown Eqnedit64 CI release-context schema")
+            print("::error::Unknown EqnEdit64 CI release-context schema")
             sys.exit(1)
         if (context.get("repository") != os.environ["GITHUB_REPOSITORY"] or
                 context.get("sha") != os.environ["SHA"] or
                 str(context.get("run_id")) != os.environ["RUN_ID"]):
-            print("::error::Eqnedit64 CI context does not match workflow_run")
+            print("::error::EqnEdit64 CI context does not match workflow_run")
             sys.exit(1)
 
         ref = context.get("ref", "")
@@ -59,7 +59,7 @@ jobs:
             output.write(f"eligible={str(eligible).lower()}\n")
             output.write(f"sha={context['sha']}\n")
             output.write(f"tag={tag if eligible else ''}\n")
-        print(f"Eqnedit64 CI ref: {ref} (eligible={eligible})")
+        print(f"EqnEdit64 CI ref: {ref} (eligible={eligible})")
         PY
   # Signed assets are staged separately; this hosted job only verifies them
   signed-standalone:
@@ -86,8 +86,8 @@ jobs:
         $dest = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'
         New-Item -ItemType Directory -Path $dest | Out-Null
         # Download canonical names from the unpublished, exact-SHA draft.
-        foreach ($item in @(@("Eqnedit64.exe", 100000),
-                            @("Eqnedit64.release.json", 1),
+        foreach ($item in @(@("EqnEdit64.exe", 100000),
+                            @("EqnEdit64.release.json", 1),
                             @("SHA256SUMS.txt", 1))) {
           $name = $item[0]
           python tools/download_release_asset.py `
@@ -111,8 +111,8 @@ jobs:
         EQNEDIT64_SIGNER_SHA256: ${{ secrets.EQNEDIT64_SIGNER_SHA256 }}
       run: |
         $releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'
-        $exe = Join-Path $releaseRoot 'Eqnedit64.exe'
-        $manifestPath = Join-Path $releaseRoot 'Eqnedit64.release.json'
+        $exe = Join-Path $releaseRoot 'EqnEdit64.exe'
+        $manifestPath = Join-Path $releaseRoot 'EqnEdit64.release.json'
         Write-Host "Verifying staged release payload: $releaseRoot"
         $manifest = Get-Content -LiteralPath $manifestPath -Raw |
           ConvertFrom-Json
@@ -144,7 +144,7 @@ jobs:
             $manifest.exe_sha256 -cne $actualHash -or
             $actualVersion -cne $expectedVersion -or
             $manifest.repository -cne $env:GITHUB_REPOSITORY) {
-          throw ('The staged signed Eqnedit64 does not match this tag. ' +
+          throw ('The staged signed EqnEdit64 does not match this tag. ' +
             'It must be the executable compiled and signed from the exact ' +
             'tagged commit, staged by the maintainer signing step before the release tag.')
         }
@@ -154,7 +154,7 @@ jobs:
         Copy-Item -LiteralPath $exe -Destination $artifact
         Copy-Item -LiteralPath $manifestPath -Destination $artifact
         $stagedChecksum = Get-Content -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS.txt') -Raw
-        if ($stagedChecksum.Trim() -cne ($actualHash.ToLowerInvariant() + '  Eqnedit64.exe')) { throw 'Staged checksum mismatch' }
+        if ($stagedChecksum.Trim() -cne ($actualHash.ToLowerInvariant() + '  EqnEdit64.exe')) { throw 'Staged checksum mismatch' }
         Copy-Item -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS.txt') -Destination $artifact
     - name: Reject development labels in staged release artifacts
       shell: pwsh
@@ -162,7 +162,7 @@ jobs:
         python tools/release_version.py --check
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'
-        python tools/check_release_versions.py --artifact "$releaseRoot/Eqnedit64.exe" --artifact "$releaseRoot/Eqnedit64.release.json" --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html
+        python tools/check_release_versions.py --artifact "$releaseRoot/EqnEdit64.exe" --artifact "$releaseRoot/EqnEdit64.release.json" --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Upload exact signed standalone artifact
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -170,6 +170,7 @@ jobs:
         name: eqnedit64-signed-standalone
         path: ${{ runner.temp }}/eqnedit64-signed-standalone/*
         if-no-files-found: error
+    # Draft release reads require push permission; the token is limited to this job.
     permissions:
       contents: write
       actions: read
@@ -191,6 +192,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ needs.qualify.outputs.sha }}
+        persist-credentials: false
     - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.python-version }}
@@ -205,11 +207,11 @@ jobs:
       shell: pwsh
       run: |
         $directory = Join-Path $env:RUNNER_TEMP 'eqnedit64-release'
-        $exe = Join-Path $directory 'Eqnedit64.exe'
+        $exe = Join-Path $directory 'EqnEdit64.exe'
         $checksums = Join-Path $directory 'SHA256SUMS.txt'
         $line = Get-Content -LiteralPath $checksums |
-          Where-Object { $_ -match 'Eqnedit64\.exe$' } | Select-Object -First 1
-        if (-not $line) { throw 'Eqnedit64.exe checksum is missing' }
+          Where-Object { $_ -match 'EqnEdit64\.exe$' } | Select-Object -First 1
+        if (-not $line) { throw 'EqnEdit64.exe checksum is missing' }
         $expected = ($line -split '\s+')[0].ToUpperInvariant()
         $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash
         if ($actual -ne $expected) {
@@ -273,6 +275,9 @@ jobs:
         $wheel = Get-ChildItem python/dist/eqnedit64-*.whl | Select-Object -First 1
         python tools/check_release_versions.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $version = "${{ needs.qualify.outputs.tag }}".Substring(1)
+        python tools/check_release_wheels.py --wheel-dir python/dist --standalone $env:EQNEDIT64_RELEASE_EXE --version $version --source-sha "${{ needs.qualify.outputs.sha }}" --python-version "${{ matrix.python-version }}"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         python tests/check_public_names.py --artifact $wheel.FullName --artifact $env:EQNEDIT64_RELEASE_EXE
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -321,10 +326,16 @@ jobs:
       run: |
         set -euo pipefail
         python tools/release_version.py --check
-        args=(--artifact standalone/Eqnedit64.exe --artifact standalone/Eqnedit64.release.json --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html)
+        args=(--artifact standalone/EqnEdit64.exe --artifact standalone/EqnEdit64.release.json --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html)
         for wheel in dist/*.whl; do args+=(--artifact "$wheel"); done
         python tools/check_release_versions.py "${args[@]}"
-    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
+    - name: Bind all four wheels to the signed standalone and canonical Web blobs
+      env:
+        EQNEDIT64_TAG: ${{ needs.qualify.outputs.tag }}
+        EQNEDIT64_SHA: ${{ needs.qualify.outputs.sha }}
+      run: |
+        python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version "${EQNEDIT64_TAG#v}" --source-sha "$EQNEDIT64_SHA"
+    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
       with:
         packages-dir: dist/
         skip-existing: false

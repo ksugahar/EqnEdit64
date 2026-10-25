@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-REM Build the TeX-only Eqnedit64 core module for background tests.
+REM Build the TeX-only EqnEdit64 core module for background tests.
 
 call "%~dp0select_vs2022.bat"
 if errorlevel 1 exit /b 1
@@ -16,7 +16,7 @@ REM Loading it from the file on the share instead was unreliable: private
 REM font registrations are torn down when a process exits, and a process
 REM starting during that teardown intermittently got nothing, so every glyph
 REM measured zero wide and three unrelated layout checks failed at once.
-rc /nologo /fo build\Eqnedit64.res src\eqnedit64.rc
+rc /nologo /fo build\EqnEdit64.res src\eqnedit64.rc
 if errorlevel 1 ( echo [ERROR] resources failed & exit /b 1 )
 
 echo [INFO] building build\eqnedit_core!EXTSUF!
@@ -26,7 +26,7 @@ cl /nologo /O2 /W4 /WX /EHsc /MD /std:c++17 /utf-8 ^
        src\equation_edit.cpp src\equation_node.cpp src\latex_emitter.cpp ^
        src\mathml_emitter.cpp src\office_html.cpp src\math_symbols.cpp src\palettes.cpp src\tex_document.cpp ^
    /LD /Fo:build\ /Fe:build\eqnedit_core!EXTSUF! ^
-   /link /LIBPATH:"!PYLIBS!" build\Eqnedit64.res gdi32.lib user32.lib
+   /link /LIBPATH:"!PYLIBS!" build\EqnEdit64.res gdi32.lib user32.lib
 if errorlevel 1 ( echo [ERROR] eqnedit_core module build failed & exit /b 1 )
 
 if not exist "build\eqnedit_core!EXTSUF!" (

@@ -17,13 +17,13 @@ def test_version_contract():
     assert f'#define EQNEDIT64_VERSION_TEXT "{version}"' in header
     assert f'#define EQNEDIT64_VERSION_TEXT_W L"{version}"' in header
     assert f'__version__ = "{version}"' in (PACKAGE / "src/eqnedit64/__init__.py").read_text("utf-8")
-    assert 'project(Eqnedit64 VERSION ${EQNEDIT64_VERSION} ' in (ROOT / "CMakeLists.txt").read_text("utf-8")
+    assert 'project(EqnEdit64 VERSION ${EQNEDIT64_VERSION} ' in (ROOT / "CMakeLists.txt").read_text("utf-8")
     assert f'var BUILD = "{version}";' in (ROOT / "web/equation-editor.js").read_text("utf-8")
     for changelog in [ROOT / "docs/CHANGELOG.md"]:
         assert re.search(rf"^## {re.escape(version)}(?: |$)", changelog.read_text("utf-8"), re.M)
     for readme in [ROOT / "README.md", PACKAGE / "README.md"]:
         assert f"Source version: **{version}**" in readme.read_text("utf-8")
-    assert f"- 対象: Eqnedit64 {version}" in (ROOT / "docs/GUI_SPEC.md").read_text("utf-8")
+    assert f"- 対象: EqnEdit64 {version}" in (ROOT / "docs/GUI_SPEC.md").read_text("utf-8")
 
 
 
@@ -87,7 +87,7 @@ def test_draft_download_uses_authenticated_api_and_exact_size(tmp_path, monkeypa
     import io
     import pytest
     mod = _draft_module()
-    asset = {"id": 7, "name": "Eqnedit64.exe", "size": 4, "state": "uploaded",
+    asset = {"id": 7, "name": "EqnEdit64.exe", "size": 4, "state": "uploaded",
              "browser_download_url": "https://example.invalid/public-copy"}
     monkeypatch.setattr(mod, "fetch_release", lambda *a: {"assets": [asset]})
     calls = []
@@ -95,11 +95,11 @@ def test_draft_download_uses_authenticated_api_and_exact_size(tmp_path, monkeypa
         calls.append((url, binary))
         return io.BytesIO(b"data")
     monkeypatch.setattr(mod, "request", fake_request)
-    result = mod.download("example/editor", "v3.1.6", "a" * 40, "Eqnedit64.exe", tmp_path, 1)
+    result = mod.download("example/editor", "v3.1.6", "a" * 40, "EqnEdit64.exe", tmp_path, 1)
     assert result.read_bytes() == b"data"
     assert calls == [("https://api.github.com/repos/example/editor/releases/assets/7", True)]
     asset["size"] = 5
-    with pytest.raises(ValueError): mod.download("example/editor", "v3.1.6", "a" * 40, "Eqnedit64.exe", tmp_path, 1)
+    with pytest.raises(ValueError): mod.download("example/editor", "v3.1.6", "a" * 40, "EqnEdit64.exe", tmp_path, 1)
     with pytest.raises(ValueError): mod.download("example/editor", "v3.1.6", "a" * 40, "../unexpected", tmp_path, 1)
 
 def test_asset_redirect_drops_credentials(monkeypatch):

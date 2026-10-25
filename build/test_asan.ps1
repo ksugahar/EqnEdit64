@@ -14,7 +14,7 @@ $exe = if ($AppPath) {
     (Resolve-Path -LiteralPath $AppPath -ErrorAction Stop).Path
 } else {
     (Resolve-Path -LiteralPath (Join-Path $root `
-        'build\Eqnedit64_asan.exe') -ErrorAction Stop).Path
+        'build\EqnEdit64_asan.exe') -ErrorAction Stop).Path
 }
 $previousOptions = $env:ASAN_OPTIONS
 $runtime = Join-Path (Split-Path -Parent $exe) 'clang_rt.asan_dynamic-x86_64.dll'

@@ -2,7 +2,7 @@
 #
 # The EMF is what PowerPoint receives when an equation is pasted as a picture.
 # It used to record text plus a font name, and Latin Modern Math is loaded
-# into Eqnedit64's own process alone -- so PowerPoint substituted and the
+# into EqnEdit64's own process alone -- so PowerPoint substituted and the
 # equation stopped looking like TeX on the machine that made it.  Glyphs are
 # recorded as outlines now.
 #
@@ -15,10 +15,10 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $root 'build\Eqnedit64.exe'
-if (-not (Test-Path $exe)) { $exe = Join-Path $root 'dist\Eqnedit64.exe' }
+$exe = Join-Path $root 'build\EqnEdit64.exe'
+if (-not (Test-Path $exe)) { $exe = Join-Path $root 'dist\EqnEdit64.exe' }
 if (-not (Test-Path $exe)) {
-    Write-Output 'skip  Eqnedit64.exe has not been built'
+    Write-Output 'skip  EqnEdit64.exe has not been built'
     exit 0
 }
 

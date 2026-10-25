@@ -1,4 +1,4 @@
-"""Checked wrappers around the bundled standalone Eqnedit64 executable."""
+"""Checked wrappers around the bundled standalone EqnEdit64 executable."""
 from __future__ import annotations
 
 from importlib.resources import files
@@ -40,11 +40,11 @@ def export_powerpoint_math(tex: str, output: str | Path,
             result = _invoke([str(source), str(candidate)], timeout_s)
             if result.returncode:
                 raise RuntimeError(
-                    f"Eqnedit64 math export exited {result.returncode}: "
+                    f"EqnEdit64 math export exited {result.returncode}: "
                     f"{(result.stderr or result.stdout).strip()}"
                 )
             if not candidate.is_file() or not 0 < candidate.stat().st_size <= 10_000_000:
-                raise RuntimeError("Eqnedit64 did not create a bounded math output")
+                raise RuntimeError("EqnEdit64 did not create a bounded math output")
             root = ET.fromstring(candidate.read_bytes())
             math = "http://schemas.openxmlformats.org/officeDocument/2006/math"
             drawing = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -61,19 +61,19 @@ def export_powerpoint_math(tex: str, output: str | Path,
 
 def backend_path() -> Path:
     """Return the bundled standalone executable path."""
-    path = Path(str(files("eqnedit64").joinpath("Eqnedit64.exe")))
+    path = Path(str(files("eqnedit64").joinpath("EqnEdit64.exe")))
     if not path.is_file():
-        raise FileNotFoundError(f"bundled Eqnedit64.exe is missing: {path}")
+        raise FileNotFoundError(f"bundled EqnEdit64.exe is missing: {path}")
     return path
 
 
 def web_asset(name: str = "equation-editor.js") -> Path:
     """Return a checked path to a bundled browser-editor asset."""
     if name not in {"equation-editor.js", "equation-editor.fragment.html"}:
-        raise ValueError("unknown Eqnedit64 Web asset")
+        raise ValueError("unknown EqnEdit64 Web asset")
     path = Path(str(files("eqnedit64").joinpath("web", name)))
     if not path.is_file():
-        raise FileNotFoundError(f"bundled Eqnedit64 Web asset is missing: {path}")
+        raise FileNotFoundError(f"bundled EqnEdit64 Web asset is missing: {path}")
     return path
 
 
@@ -113,7 +113,7 @@ def copy_equation(tex: str, target: str = "office", timeout_s: float = 15.0) -> 
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(
-            f"Eqnedit64 clipboard command exited {result.returncode}: {detail}"
+            f"EqnEdit64 clipboard command exited {result.returncode}: {detail}"
         )
 
 
@@ -132,8 +132,8 @@ def render_equation(tex: str, output: str | Path, timeout_s: float = 30.0) -> Pa
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(
-            f"Eqnedit64 render command exited {result.returncode}: {detail}"
+            f"EqnEdit64 render command exited {result.returncode}: {detail}"
         )
     if not destination.is_file() or destination.stat().st_size == 0:
-        raise RuntimeError("Eqnedit64 did not create a non-empty output file")
+        raise RuntimeError("EqnEdit64 did not create a non-empty output file")
     return destination

@@ -52,8 +52,8 @@ namespace {
 
 using eqnedit::Palette;
 
-constexpr wchar_t kMainClass[] = L"Eqnedit64.Main";
-constexpr wchar_t kCanvasClass[] = L"Eqnedit64.Canvas";
+constexpr wchar_t kMainClass[] = L"EqnEdit64.Main";
+constexpr wchar_t kCanvasClass[] = L"EqnEdit64.Canvas";
 constexpr wchar_t kTitle[] = L"数式エディタ64";
 constexpr wchar_t kProductVersion[] = EQNEDIT64_VERSION_TEXT_W;
 
@@ -315,7 +315,7 @@ void debug_write_raw(const std::string& text) {
  * ring buffer -- always, not only while the opt-in operation log runs -- and
  * a watchdog thread watches the UI thread's heartbeat.  When the heartbeat
  * stops, the watchdog writes the ring to
- * %LOCALAPPDATA%\Eqnedit64\hang-<time>.log while the program is still stuck.
+ * %LOCALAPPDATA%\EqnEdit64\hang-<time>.log while the program is still stuck.
  * The last line of that file is the thing that froze it, as text, with no
  * debugger and no reproduction needed. */
 constexpr int kFlightSlots = 256;
@@ -355,7 +355,7 @@ std::wstring hang_log_directory() {
     wchar_t local[MAX_PATH] = {};
     if (!GetEnvironmentVariableW(L"LOCALAPPDATA", local, _countof(local)))
         GetTempPathW(_countof(local), local);
-    std::wstring dir = std::wstring(local) + L"\\Eqnedit64";
+    std::wstring dir = std::wstring(local) + L"\\EqnEdit64";
     CreateDirectoryW(dir.c_str(), nullptr);
     return dir;
 }
@@ -552,7 +552,7 @@ std::wstring default_debug_log_path() {
     }
     if (root.empty()) return {};
     if (root.back() == L'\\') root.pop_back();
-    root += L"\\Eqnedit64";
+    root += L"\\EqnEdit64";
     CreateDirectoryW(root.c_str(), nullptr);
     root += L"\\logs";
     CreateDirectoryW(root.c_str(), nullptr);
@@ -824,13 +824,13 @@ bool start_operation_debug(bool announce,
     g.debugLastTick = g.debugStartTick;
     static const char bom[] = "\xEF\xBB\xBF";
     debug_write_raw(std::string(bom, 3));
-    debug_write_raw("# Eqnedit64 operation log v2\r\n"
+    debug_write_raw("# EqnEdit64 operation log v2\r\n"
                     "# This log contains the equation text entered while recording.\r\n"
                     "# seq\ttime\tevent\tdetails\tcaret\tselection\tdirty"
                     "\telapsed_ms\tdelta_ms\tfocus\tinput_style\talignment"
                     "\tzoom_percent\tequation_mode"
                     "\tshortcut_prefix\tlatex\r\n");
-    debug_event("debug.start", "Eqnedit64 " + utf8_wide(kProductVersion) +
+    debug_event("debug.start", "EqnEdit64 " + utf8_wide(kProductVersion) +
         " path=" + utf8_wide(path));
     update_debug_menu();
     update_title();
@@ -1299,7 +1299,7 @@ std::string cf_html_image(const unsigned char* png, size_t pngBytes,
     if (!png || pngBytes == 0 || widthPoints <= 0 || heightPoints <= 0)
         return {};
     const std::string fragment =
-        "<img alt=\"Eqnedit64 equation\" src=\"data:image/png;base64," +
+        "<img alt=\"EqnEdit64 equation\" src=\"data:image/png;base64," +
         base64_encode(png, pngBytes) + "\" style=\"width:" +
         fixed_decimal(widthPoints) + "pt;height:" +
         fixed_decimal(heightPoints) +
@@ -1543,7 +1543,7 @@ HENHMETAFILE equation_emf(const std::string& latex,
     const double dpi = reference ? double(GetDeviceCaps(reference, LOGPIXELSX))
                                  : 96.0;
     HDC metafile = CreateEnhMetaFileW(reference, nullptr, &frame,
-        L"Eqnedit64\0Equation\0");
+        L"EqnEdit64\0Equation\0");
     if (reference) ReleaseDC(nullptr, reference);
     if (!metafile) return nullptr;
 
@@ -2131,7 +2131,7 @@ void export_text(const wchar_t* ext, const wchar_t* filter,
 
 void show_shortcuts() {
     MessageBoxW(g.main,
-        L"Eqnedit64の直接入力\n\n"
+        L"EqnEdit64の直接入力\n\n"
         L"Ctrl+F 分数   Ctrl+/ 斜線分数   Ctrl+R 平方根\n"
         L"Ctrl+Alt+R n乗根   Ctrl+Alt+I 二重積分\n"
         L"Ctrl+H 上付き   Ctrl+L 下付き   Ctrl+J 上下付き\n"
@@ -4663,7 +4663,7 @@ int operation_log_test(const std::wstring& output) {
     stop_operation_debug(false);
     std::string log;
     if (!read_file(output, log)) return 36;
-    if (log.find("Eqnedit64 operation log v2") == std::string::npos) return 32;
+    if (log.find("EqnEdit64 operation log v2") == std::string::npos) return 32;
     if (log.find("test.keyboard") == std::string::npos) return 33;
     if (log.find("user.marker") == std::string::npos) return 34;
     if (log.find("caret=") == std::string::npos ||
@@ -4744,7 +4744,7 @@ int render_png(const std::wstring& tex, const std::wstring& path) {
  * releases exposed a separate switch for every combination of literal/file,
  * clipboard target, and image format.  That made the command spelling harder
  * to remember than the conversion itself and leaked implementation choices
- * into radia-mcp. All callers now use `Eqnedit64.exe INPUT OUTPUT` and let OUTPUT name the format. */
+ * into radia-mcp. All callers now use `EqnEdit64.exe INPUT OUTPUT` and let OUTPUT name the format. */
 int convert_source(const std::wstring& source, const std::wstring& output) {
     const ConversionDestination destination = conversion_destination(output);
     if (destination == ConversionDestination::Invalid) return 94;
@@ -6672,16 +6672,16 @@ bool write_standard_text(DWORD stream, const std::wstring& text) {
 }
 
 int report_cli_error(const std::wstring& message, int exitCode) {
-    const std::wstring text = L"Eqnedit64: " + message + L"\r\n";
+    const std::wstring text = L"EqnEdit64: " + message + L"\r\n";
     if (!write_standard_text(STD_ERROR_HANDLE, text))
-        MessageBoxW(nullptr, message.c_str(), L"Eqnedit64 コマンドライン",
+        MessageBoxW(nullptr, message.c_str(), L"EqnEdit64 コマンドライン",
                     MB_OK | MB_ICONERROR);
     return exitCode;
 }
 
 int show_cli_help() {
     const wchar_t* help =
-        L"TeX変換:  Eqnedit64.exe <入力> <出力>\r\n\r\n"
+        L"TeX変換:  EqnEdit64.exe <入力> <出力>\r\n\r\n"
         L"入力\r\n"
         L"  equation.tex   UTF-8 TeXファイル\r\n"
         L"  clipboard      クリップボード上のTeX\r\n\r\n"
@@ -6692,13 +6692,13 @@ int show_cli_help() {
         L"  equation.png   PNGファイル\r\n"
         L"  equation.emf   EMFファイル\r\n\r\n"
         L"  equation.pptxmath  PowerPoint OOXML math (strict export)\r\n\r\n"
-        L"例: Eqnedit64.exe equation.tex office\r\n"
-        L"例: Eqnedit64.exe equation.tex equation.png\r\n"
-        L"例: Eqnedit64.exe clipboard clipboard-png\r\n\r\n"
+        L"例: EqnEdit64.exe equation.tex office\r\n"
+        L"例: EqnEdit64.exe equation.tex equation.png\r\n"
+        L"例: EqnEdit64.exe clipboard clipboard-png\r\n\r\n"
         L"引数なしでGUIを起動し、.tex一つならGUIで開きます。\r\n"
         L"旧オプションと出力名 png は廃止されました（終了コード94）。\r\n";
     if (!write_standard_text(STD_OUTPUT_HANDLE, help))
-        MessageBoxW(nullptr, help, L"Eqnedit64 コマンドライン", MB_OK);
+        MessageBoxW(nullptr, help, L"EqnEdit64 コマンドライン", MB_OK);
     return 0;
 }
 
@@ -6720,7 +6720,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     for (const auto& argument : args) {
         if (argument == L"--texclip" || argument == L"--clipboard-tex-to-png" ||
             argument.compare(0, 7, L"--copy-") == 0 || argument.compare(0, 9, L"--render-") == 0)
-            return report_cli_error(L"Removed compatibility option. Use Eqnedit64.exe INPUT OUTPUT; "
+            return report_cli_error(L"Removed compatibility option. Use EqnEdit64.exe INPUT OUTPUT; "
                 L"OUTPUT: office, slides, clipboard-png, output.png, output.emf, output.pptxmath.", 94);
     }
     if (args.size() == 2 && wide_equal_ci(args[1], L"png"))

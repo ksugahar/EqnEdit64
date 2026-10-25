@@ -1,5 +1,5 @@
 # Convenience build for IDE navigation and the C++ unit test.  It is NOT the
-# release path: `build\build_eqnedit64.bat` produces dist\Eqnedit64.exe and
+# release path: `build\build_eqnedit64.bat` produces dist\EqnEdit64.exe and
 # `build\build_pymodule.bat` the headless module the Python tests import, and
 # `build\build_tests.bat` runs the required checks.  Nothing here writes to
 # dist, so a build from this file can never become the shipped executable.
@@ -9,7 +9,7 @@ execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/too
     COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/release_version.py" --print-version
     OUTPUT_VARIABLE EQNEDIT64_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
-project(Eqnedit64 VERSION ${EQNEDIT64_VERSION} LANGUAGES CXX)
+project(EqnEdit64 VERSION ${EQNEDIT64_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,17 +36,17 @@ if(MSVC)
 endif()
 
 if(WIN32)
-    add_executable(Eqnedit64 WIN32
+    add_executable(EqnEdit64 WIN32
         src/eqnedit64_app.cpp
         src/eqnedit64.rc
     )
-    target_include_directories(Eqnedit64 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_compile_definitions(Eqnedit64 PRIVATE
+    target_include_directories(EqnEdit64 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(EqnEdit64 PRIVATE
         _CRT_SECURE_NO_WARNINGS UNICODE _UNICODE
     )
-    target_compile_options(Eqnedit64 PRIVATE /W4 /utf-8)
-    target_link_options(Eqnedit64 PRIVATE /DEBUG:FULL /OPT:REF /OPT:ICF /PDBALTPATH:Eqnedit64.pdb)
-    target_link_libraries(Eqnedit64 PRIVATE
+    target_compile_options(EqnEdit64 PRIVATE /W4 /utf-8)
+    target_link_options(EqnEdit64 PRIVATE /DEBUG:FULL /OPT:REF /OPT:ICF /PDBALTPATH:EqnEdit64.pdb)
+    target_link_libraries(EqnEdit64 PRIVATE
         eqnedit_core user32 gdi32 comctl32 comdlg32 shell32 ole32 imm32
         windowscodecs
     )
