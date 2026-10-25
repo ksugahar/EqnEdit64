@@ -11,7 +11,7 @@ pwsh -File build/accept_release.ps1 -Phase Unsigned -CheckpointPath <checkpoint.
 ```
 
 The maintainer then signs that exact executable and copies the identical signed
-bytes to both build/Eqnedit64.exe and dist/Eqnedit64.exe. Keep the unsigned report
+bytes to both build/EqnEdit64.exe and dist/EqnEdit64.exe. Keep the unsigned report
 and checkpoint unchanged. Complete qualification without rebuilding:
 
 ```powershell

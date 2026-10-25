@@ -194,7 +194,7 @@ def check(path, expected):
             if len(metadata_versions) != 1:
                 raise ValueError("Expected exactly one wheel Version header")
             exact(metadata_versions[0], expected, metadata[0])
-            for required in ("eqnedit64/Eqnedit64.exe", "eqnedit64/web/equation-editor.js", "eqnedit64/web/equation-editor.fragment.html"):
+            for required in ("eqnedit64/EqnEdit64.exe", "eqnedit64/web/equation-editor.js", "eqnedit64/web/equation-editor.fragment.html"):
                 payload = archive.read(required)
                 if required.endswith(".exe"):
                     for name, value in pe_versions(payload):

@@ -1,4 +1,4 @@
-name: Eqnedit64
+name: EqnEdit64
 permissions:
   contents: read
   actions: read
@@ -23,7 +23,7 @@ jobs:
     - name: Install test dependencies
       run: |
         python -m pip install -r ci-requirements.txt
-    - name: Check Eqnedit64 Web contract
+    - name: Check EqnEdit64 Web contract
       run: |
         python build/generate_palettes.py --check
         python build/generate_office_alphabets.py --check
@@ -52,7 +52,7 @@ jobs:
         working-directory: .
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    - name: Record exact Eqnedit64 CI ref context
+    - name: Record exact EqnEdit64 CI ref context
       working-directory: .
       run: |
         $directory = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci-release-context'
@@ -66,7 +66,7 @@ jobs:
           run_id = [string]$env:GITHUB_RUN_ID
         } | ConvertTo-Json | Set-Content `
           -LiteralPath (Join-Path $directory 'context.json') -Encoding utf8
-    - name: Upload exact Eqnedit64 CI ref context
+    - name: Upload exact EqnEdit64 CI ref context
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: eqnedit64-ci-release-context
@@ -110,14 +110,14 @@ jobs:
         "EQNEDIT64_FONT_TRACE_DIR=$directory" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: Observe first executable font lifecycles
       run: |
-        pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\Eqnedit64.exe -Iterations 32 -OutputPath font-session-first.json
-    - name: Build Eqnedit64 Python wheel candidate
+        pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\EqnEdit64.exe -Iterations 32 -OutputPath font-session-first.json
+    - name: Build EqnEdit64 Python wheel candidate
       working-directory: .
       run: |
         python -m pip install -r ci-requirements.txt
-        $env:EQNEDIT64_RELEASE_EXE = (Resolve-Path 'build_cmake\Release\Eqnedit64.exe').Path
+        $env:EQNEDIT64_RELEASE_EXE = (Resolve-Path 'build_cmake\Release\EqnEdit64.exe').Path
         python -m build --wheel python
-    - name: Verify installed Eqnedit64 wheel
+    - name: Verify installed EqnEdit64 wheel
       working-directory: .
       run: |
         $wheel = Get-ChildItem 'python\dist\eqnedit64-*.whl' | Select-Object -First 1
@@ -139,7 +139,7 @@ jobs:
         python tests\run_model_tests.py
     - name: Run hidden executable checks
       run: |
-        $app = Resolve-Path 'build_cmake\Release\Eqnedit64.exe'
+        $app = Resolve-Path 'build_cmake\Release\EqnEdit64.exe'
         $commands = @()
         try {
           foreach ($argument in @('--self-test', '--visual-scale-test', '--ui-interaction-test')) {
@@ -170,7 +170,7 @@ jobs:
         if-no-files-found: error
     - name: Reject Windows session font-host damage
       run: |
-        pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\Eqnedit64.exe -Iterations 32 -OutputPath font-session-after-suites.json
+        pwsh -NoProfile -File build\test_font_session.ps1 -AppPath build_cmake\Release\EqnEdit64.exe -Iterations 32 -OutputPath font-session-after-suites.json
     - name: Preserve font-host acceptance evidence
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -182,11 +182,11 @@ jobs:
       run: |
         python tests/check_public_names.py
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        python tests/check_pe_debug.py build_cmake/Release/Eqnedit64.exe
+        python tests/check_pe_debug.py build_cmake/Release/EqnEdit64.exe
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Check command-line image artifacts
       run: |
-        $app = Resolve-Path 'build_cmake\Release\Eqnedit64.exe'
+        $app = Resolve-Path 'build_cmake\Release\EqnEdit64.exe'
         $tex = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci.tex'
         $png = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci.png'
         $emf = Join-Path $env:RUNNER_TEMP 'eqnedit64-ci.emf'
@@ -196,18 +196,18 @@ jobs:
         & $app $tex $emf
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         if ((Get-Item $png).Length -le 8 -or (Get-Item $emf).Length -le 88) {
-          throw 'Eqnedit64 CLI produced an empty image artifact'
+          throw 'EqnEdit64 CLI produced an empty image artifact'
         }
         $signature = [IO.File]::ReadAllBytes($png)[0..7]
         if ([Convert]::ToHexString($signature) -ne '89504E470D0A1A0A') {
-          throw 'Eqnedit64 CLI output is not PNG'
+          throw 'EqnEdit64 CLI output is not PNG'
         }
     - name: Check redirectable command-line diagnostics
       run: |
-        pwsh -NoProfile -File tests/test_cli_output.ps1 -AppPath build_cmake/Release/Eqnedit64.exe
+        pwsh -NoProfile -File tests/test_cli_output.ps1 -AppPath build_cmake/Release/EqnEdit64.exe
     - name: Validate native PowerPoint math fragments and schema
       run: |
-        python tests/check_powerpoint_math.py --app build_cmake/Release/Eqnedit64.exe --probe build_cmake/Release/office_payload_probe.exe --output powerpoint-math-evidence
+        python tests/check_powerpoint_math.py --app build_cmake/Release/EqnEdit64.exe --probe build_cmake/Release/office_payload_probe.exe --output powerpoint-math-evidence
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         dotnet run --project tests/ooxml_schema/ooxml_schema.csproj -- tests/office_bit_corpus.json powerpoint-math-evidence
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -230,7 +230,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         npx playwright install chromium
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        node tests/test_office_bit_parity.cjs build_cmake/Release/office_payload_probe.exe build_cmake/Release/Eqnedit64.exe --wire
+        node tests/test_office_bit_parity.cjs build_cmake/Release/office_payload_probe.exe build_cmake/Release/EqnEdit64.exe --wire
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Preserve Office clipboard byte evidence
       if: ${{ always() }}
@@ -241,10 +241,10 @@ jobs:
         if-no-files-found: error
     - name: Check font host after the final CLI workload
       run: |
-        pwsh -NoProfile -File build/test_font_session.ps1 -AppPath build_cmake/Release/Eqnedit64.exe -Iterations 32 -OutputPath font-session-final.json
+        pwsh -NoProfile -File build/test_font_session.ps1 -AppPath build_cmake/Release/EqnEdit64.exe -Iterations 32 -OutputPath font-session-final.json
     - name: Identify exact native candidate payload
       run: |
-        $files = @('build_cmake/Release/Eqnedit64.exe', 'build/eqnedit_core.cp312-win_amd64.pyd', 'assets/eqnedit-math.ttf')
+        $files = @('build_cmake/Release/EqnEdit64.exe', 'build/eqnedit_core.cp312-win_amd64.pyd', 'assets/eqnedit-math.ttf')
         $records = @($files | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash $_ -Algorithm SHA256 -ErrorAction Stop).Hash} })
         [ordered]@{source_sha=$env:GITHUB_SHA;diagnostic_only=$true;files=$records} | ConvertTo-Json -Depth 4 | Set-Content native-candidate-manifest.json -Encoding utf8
     - name: Preserve final candidate evidence
@@ -256,7 +256,7 @@ jobs:
           font-session-*.json
           native-candidate-manifest.json
           diagnostic-font.json
-          build_cmake/Release/Eqnedit64.exe
+          build_cmake/Release/EqnEdit64.exe
           build/eqnedit_core*.pyd
           assets/GUST-FONT-LICENSE.txt
           assets/THIRD_PARTY_NOTICES.md

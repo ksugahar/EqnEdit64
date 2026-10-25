@@ -1,4 +1,4 @@
-"""Measure how a construct is laid out, by pdfLaTeX and by Eqnedit64.
+"""Measure how a construct is laid out, by pdfLaTeX and by EqnEdit64.
 
 The renderer's layout constants were chosen by eye and every one of them was
 wrong: the fraction rule was 0.39 em too wide, the numerator 0.24 em too
@@ -280,7 +280,7 @@ def main(argv):
         return 0
     ref = load_reference()
     mine = measure_eqnedit()
-    print("%-46s %9s %10s %8s" % ("measurement", "pdfLaTeX", "Eqnedit64",
+    print("%-46s %9s %10s %8s" % ("measurement", "pdfLaTeX", "EqnEdit64",
                                   "diff"))
     print("-" * 78)
     for key in sorted(set(ref) | set(mine)):

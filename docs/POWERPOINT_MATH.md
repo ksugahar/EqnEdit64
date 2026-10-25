@@ -3,7 +3,7 @@
 Version 3.1.6 is the first independent-repository candidate; not released yet.
 
 ```text
-Eqnedit64.exe equation.tex equation.pptxmath
+EqnEdit64.exe equation.tex equation.pptxmath
 ```
 
 The output is an XML `m:oMathPara` in the 2006 Office math namespace, with

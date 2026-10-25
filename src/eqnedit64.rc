@@ -29,12 +29,12 @@ BEGIN
         BLOCK "041104B0"
         BEGIN
             VALUE "CompanyName", "Kengo Sugahara\0"
-            VALUE "FileDescription", "Eqnedit64 - TeX Equation Editor\0"
+            VALUE "FileDescription", "EqnEdit64 - TeX Equation Editor\0"
             VALUE "FileVersion", EQNEDIT64_VERSION_TEXT "\0"
-            VALUE "InternalName", "Eqnedit64\0"
+            VALUE "InternalName", "EqnEdit64\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 Kengo Sugahara\0"
-            VALUE "OriginalFilename", "Eqnedit64.exe\0"
-            VALUE "ProductName", "Eqnedit64\0"
+            VALUE "OriginalFilename", "EqnEdit64.exe\0"
+            VALUE "ProductName", "EqnEdit64\0"
             VALUE "ProductVersion", EQNEDIT64_VERSION_TEXT "\0"
         END
     END

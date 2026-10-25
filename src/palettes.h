@@ -2,7 +2,7 @@
  *
  * The palette catalog puts every symbol and every template on one of nineteen toolbar
  * palettes -- ten of symbols, nine of templates -- and has no Insert menu at
- * all.  Two clicks reach any of its ~300 items.  Eqnedit64 had flat menus
+ * all.  Two clicks reach any of its ~300 items.  EqnEdit64 had flat menus
  * instead, which left 117 of its 160 symbols with no mouse route and no
  * shortcut; the only way in was to know and type the command.  This table is
  * the same catalogue idea, and tests/test_palettes.py is what keeps it

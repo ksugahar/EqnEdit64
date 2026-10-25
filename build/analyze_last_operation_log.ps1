@@ -9,12 +9,12 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 
 if (-not $LogPath) {
-    $logDirectory = Join-Path $env:LOCALAPPDATA 'Eqnedit64\logs'
+    $logDirectory = Join-Path $env:LOCALAPPDATA 'EqnEdit64\logs'
     $latest = Get-ChildItem -LiteralPath $logDirectory -Filter 'operation-*.log' -File |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
     if (-not $latest) {
-        throw "No Eqnedit64 operation log was found in $logDirectory"
+        throw "No EqnEdit64 operation log was found in $logDirectory"
     }
     $LogPath = $latest.FullName
 }
@@ -25,7 +25,7 @@ if (-not (Test-Path -LiteralPath $LogPath)) {
 
 if (-not $OutputPath) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputPath = "$env:TEMP\Eqnedit64-usability-$stamp.json"
+    $OutputPath = "$env:TEMP\EqnEdit64-usability-$stamp.json"
 }
 
 $analyzer = Join-Path $projectRoot 'tools\analyze_usability_trace.py'

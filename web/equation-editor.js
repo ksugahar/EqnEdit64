@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0
- * Canonical source: ksugahar/eqnedit64 web/equation-editor.js
+ * Canonical source: ksugahar/EqnEdit64 web/equation-editor.js
  *
  * 数式エディタ（Web版） --- 3Dで学ぶ電磁気学 トップページ
  *
- * 研究室のネイティブ数式エディタ（Eqnedit64）の操作思想を、ページに載る
+ * 研究室のネイティブ数式エディタ（EqnEdit64）の操作思想を、ページに載る
  * 最小構成へ写したもの。TeXソースを唯一の正とし、描画はサイト共通の
  * MathJax に任せる。パレットは「マウスで全記号に届く」規則の縮約版。
  *
@@ -21,7 +21,7 @@
   /* デプロイごとに上げる。ボタン行の右端に出て、開きっぱなしのタブが
    * 古い版を動かし続けていないかを一目で判別できる（.exe の
    * タイトルバー・ビルドスタンプと同じ教訓）。 */
-  var BUILD = "3.1.7";
+  var BUILD = "3.1.8";
 
   // BEGIN GENERATED PALETTES
   var PALETTES = [

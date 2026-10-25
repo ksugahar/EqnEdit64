@@ -243,12 +243,12 @@ std::filesystem::path font_cache_root() {
     if (needed > 1) {
         std::vector<wchar_t> value(needed);
         if (GetEnvironmentVariableW(L"LOCALAPPDATA", value.data(), needed))
-            return std::filesystem::path(value.data()) / L"Eqnedit64" /
+            return std::filesystem::path(value.data()) / L"EqnEdit64" /
                    L"fonts";
     }
     wchar_t temporary[MAX_PATH] = {};
     if (GetTempPathW(_countof(temporary), temporary))
-        return std::filesystem::path(temporary) / L"Eqnedit64" / L"fonts";
+        return std::filesystem::path(temporary) / L"EqnEdit64" / L"fonts";
     return {};
 }
 

@@ -1,1 +1,1 @@
-"""Development tools for Eqnedit64; never required by the portable app."""
+"""Development tools for EqnEdit64; never required by the portable app."""

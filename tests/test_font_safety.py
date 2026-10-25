@@ -28,7 +28,7 @@ def main() -> int:
         if required not in render:
             failures.append(f"missing file-backed font invariant: {required}")
     if "test_font_session.ps1" not in workflow:
-        failures.append("Eqnedit64 CI does not run the font-session stress gate")
+        failures.append("EqnEdit64 CI does not run the font-session stress gate")
     font_session = (ROOT / "build/test_font_session.ps1").read_text(
         encoding="utf-8"
     )

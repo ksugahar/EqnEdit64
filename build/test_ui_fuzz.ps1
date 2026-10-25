@@ -20,13 +20,13 @@ $root = Split-Path -Parent $PSScriptRoot
 $exe = if ($AppPath) {
     (Resolve-Path -LiteralPath $AppPath -ErrorAction Stop).Path
 } else {
-    Join-Path $root 'build\Eqnedit64.exe'
+    Join-Path $root 'build\EqnEdit64.exe'
 }
 if (-not $AppPath -and -not (Test-Path $exe)) {
-    $exe = Join-Path $root 'dist\Eqnedit64.exe'
+    $exe = Join-Path $root 'dist\EqnEdit64.exe'
 }
 if (-not (Test-Path $exe)) {
-    Write-Output 'skip  Eqnedit64.exe has not been built'
+    Write-Output 'skip  EqnEdit64.exe has not been built'
     return
 }
 
@@ -101,11 +101,11 @@ if ($fontHostsBefore -and $fontHostsAfter -ne $fontHostsBefore) {
         Write-Warning (
             "INCONCLUSIVE font-host observation on a shared interactive " +
             "session: $observation. Structural fuzz itself passed; do not " +
-            "attribute a system-wide host replacement to Eqnedit64 here.")
+            "attribute a system-wide host replacement to EqnEdit64 here.")
     } elseif ($controlCrashes.Count) {
         Write-Output (
             "INCONCLUSIVE: the isolated session was already losing its font " +
-            "host before Eqnedit64 fuzz: $observation")
+            "host before EqnEdit64 fuzz: $observation")
         exit 2
     } elseif (-not $activeCrashes.Count) {
         Write-Output (

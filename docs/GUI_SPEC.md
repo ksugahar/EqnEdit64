@@ -1,17 +1,17 @@
-# Eqnedit64 GUI仕様
+# EqnEdit64 GUI仕様
 
 - 仕様版: 1.0
-- 対象: Eqnedit64 3.1.7
-- 適用範囲: `dist\Eqnedit64.exe`
+- 対象: EqnEdit64 3.1.8
+- 適用範囲: `dist\EqnEdit64.exe`
 
-この文書は、Eqnedit64の画面、操作、状態遷移、ファイル、クリップボード、
+この文書は、EqnEdit64の画面、操作、状態遷移、ファイル、クリップボード、
 受入試験の基準仕様である。キー割当の完全な一覧は
 [`SHORTCUTS.md`](SHORTCUTS.md) を正とする。Web/JS版との
 共通中核と固有機能の境界は [`PRODUCT_PARITY.md`](PRODUCT_PARITY.md) を正とする。
 
 ## 1. 製品目的
 
-Eqnedit64は、軽快な数式入力を、標準のUTF-8 TeXへ直結する
+EqnEdit64は、軽快な数式入力を、標準のUTF-8 TeXへ直結する
 64-bit Windows数式エディタである。主眼は、文章編集やDTPではなく、
 手を止めない数式入力、構造編集、複数行数式、他アプリへの再利用である。
 
@@ -26,7 +26,7 @@ Eqnedit64は、軽快な数式入力を、標準のUTF-8 TeXへ直結する
 - キャンバスからの1回のコピーで、TeX、EMF、PowerPointのMicrosoft数式を
   利用できること。
 - Google スライド用コピーは300 dpi画像を24 pt基準の物理寸法で貼れること。
-- 配布物は `Eqnedit64.exe` 1ファイルだけとする。
+- 配布物は `EqnEdit64.exe` 1ファイルだけとする。
 - 配布exeは署名者 `ksugahar` の有効な
   Authenticode開発者署名を持つこと（`accept_release.ps1` の Signed phaseで検査）。
 
@@ -38,7 +38,7 @@ Eqnedit64は、軽快な数式入力を、標準のUTF-8 TeXへ直結する
 
 ## 2. 起動と配布
 
-- `Eqnedit64.exe` を直接実行する。Python、`.pyd`、VC++再頒布ランタイム、
+- `EqnEdit64.exe` を直接実行する。Python、`.pyd`、VC++再頒布ランタイム、
   外付けDLLを必要としない。
 - ファイルパスを第1引数に渡した場合は、その `.tex` を開く。
 - 通常起動時の新規数式は空、保存外枠は `equation`、未保存である。見本を入れておくと、
@@ -336,14 +336,14 @@ pdflatex に通して検査する。上の表に無い依存が増えたら落�
 到達した時点で関数スタイルへ自動変換し、その後に引数変数を続けても関数書体を
 保持する。たとえば`sinx`の逐次入力は`\sin x`となり、`sin`は立体、`x`は斜体に
 する。`sin`の直後に`h`を入力して`sinh`になった場合は、より長い関数名を優先する。
-Eqnedit64の自動認識名は次の39個である。
+EqnEdit64の自動認識名は次の39個である。
 
 `Im`, `Pr`, `Re`, `arg`, `arcsin`, `arccos`, `arctan`, `cosh`, `cos`,
 `coth`, `cot`, `cov`, `csc`, `deg`, `det`, `dim`, `exp`, `gcd`, `glb`,
 `hom`, `inf`, `int`, `ker`, `ln`, `lg`, `lim`, `log`, `lub`, `max`, `min`,
 `mod`, `sec`, `sgn`, `sinh`, `sin`, `sup`, `tanh`, `tan`, `var`
 
-Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
+EqnEdit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 `const`も同じ規則で立体化する。
 文章を入力する場合は文字列スタイルを使用する。
 
@@ -414,7 +414,7 @@ Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 
 ### 6.3 コマンドラインTeX→PNG変換
 
-`Eqnedit64.exe clipboard clipboard-png` はウィンドウを表示せず、クリップボード上のTeXを
+`EqnEdit64.exe clipboard clipboard-png` はウィンドウを表示せず、クリップボード上のTeXを
 読み取って、登録形式 `PNG` の白背景画像に置き換えて終了する。これは6.3.1の
 共通した「入力、出力」契約における一つの組合せであり、専用オプションではない。
 
@@ -429,7 +429,7 @@ Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 
 ### 6.3.1 公開コマンドラインAPI
 
-- 公開構文は `Eqnedit64.exe <入力> <出力>` の一種類だけとする。
+- 公開構文は `EqnEdit64.exe <入力> <出力>` の一種類だけとする。
 - `<入力>` はUTF-8 `.tex`ファイル、または登録 `LaTeX`／Unicode文字列を読む予約語
   `clipboard` とする。引用符付きTeXリテラルは公開構文に含めない。
 - `<出力>` が `office` の場合は通常コピーと同じOffice Math、TeX、EMF、不透明
@@ -471,7 +471,7 @@ Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 ## 7. キーボード契約
 
 - 完全なキー定義は [`SHORTCUTS.md`](SHORTCUTS.md) を正とする。
-- Eqnedit64の `Ctrl+T`、`Ctrl+K`、`Ctrl+G`、`Ctrl+B` 接頭辞を維持する。
+- EqnEdit64の `Ctrl+T`、`Ctrl+K`、`Ctrl+G`、`Ctrl+B` 接頭辞を維持する。
 - 接頭辞後の未登録キーは何も挿入せず、ステータスで通知する。
 - `Esc`、焦点移動、または別の操作で未完了の接頭辞を解除する。
 - メニューやツールバーから構造を挿入した後は、コーチ有効中のみ対応キーを通知する。
@@ -487,7 +487,7 @@ Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 ## 9. 操作ログ
 
 - 既定は無効とする。
-- 有効時は `%LOCALAPPDATA%\Eqnedit64\logs\operation-*.log` へUTF-8 BOM付きで記録する。
+- 有効時は `%LOCALAPPDATA%\EqnEdit64\logs\operation-*.log` へUTF-8 BOM付きで記録する。
 - operation log v2として、操作、単調時刻による開始後時間／イベント間隔、
   キャレット、選択、dirty状態、TeX数式、焦点、入力スタイル、表示配置、ズーム、
   式番号状態、ショートカット接頭辞を記録する。
@@ -517,10 +517,10 @@ Eqnedit64拡張として、`curl`, `div`, `grad`, `rot`, `tr`, `diag`, `Res`,
 | AUT-11 | 実PowerPoint UI Pasteで編集可能な上下限を必須とし、単一式の中央寄せを許容する。複数行試験は必須。Webとの描画一致は未検証 | `test_external_paste.ps1` / 隔離Office試験 |
 | AUT-12 | IrfanView `/clippaste` が非空画像を生成し、試験前のクリップボード全形式を復元する | `test_external_paste.ps1` |
 | AUT-13 | Google スライド用PNGとHTMLが同一画像で、300 dpiかつ24 pt基準の同じ物理寸法を持つ | `test_external_paste.ps1` / `--self-test` |
-| AUT-14 | 公開CLIの`入力 出力`構文がTeXファイルをPNG／EMFへ書き、`clipboard clipboard-png`がUnicode／登録LaTeXを優先規則どおり非空300 dpi PNG／全画素α=255 DIBV5へ置換する。`--help` / `--version`はredirect可能で、不正出力は標準エラーと94を返し、二つの`.tex`は変換しない | Eqnedit64 CI / `--self-test` / `test_external_paste.ps1` |
+| AUT-14 | 公開CLIの`入力 出力`構文がTeXファイルをPNG／EMFへ書き、`clipboard clipboard-png`がUnicode／登録LaTeXを優先規則どおり非空300 dpi PNG／全画素α=255 DIBV5へ置換する。`--help` / `--version`はredirect可能で、不正出力は標準エラーと94を返し、二つの`.tex`は変換しない | EqnEdit64 CI / `--self-test` / `test_external_paste.ps1` |
 | AUT-15 | 実exeのoperation log v2から本文を漏らさずF12候補を持つLLMレビュー束を生成し、v1互換と明示された製品要件を検査する | `test_usability_trace.py` / `test_background.ps1` |
 | AUT-16 | `sinx`逐次入力が立体`sin`＋斜体`x`となり、上付き内Backspaceを2回送ると文字、空シェルの順で削除され、積分上下限座標がTeX基準に一致する | `test_edit.py` / `--ui-interaction-test` / `test_layout.py` |
-| AUT-17 | Eqnedit64の基本39関数とEqnedit64拡張8関数が、一括入力・逐次入力の双方で立体TeXになる | `test_edit.py` |
+| AUT-17 | EqnEdit64の基本39関数とEqnEdit64拡張8関数が、一括入力・逐次入力の双方で立体TeXになる | `test_edit.py` |
 | AUT-18 | 完成・未完成・複数行・日本語を含むTeXソース編集と、移動あり／移動通知なしのポインタードラッグをランダムGUI操作列へ混ぜ、モデルが常に再描画可能で、編集バースト外ではソースと正規化TeXが一致し、解放後にキャプチャを残さない | `--ui-fuzz` |
 | AUT-19 | 全パレットセルに、実際の挿入処理から生成した空でない標準TeX教材が対応し、分数セルでは `TeX: \frac...` を表示する | `--ui-interaction-test` |
 | AUT-20 | ASan版でも自己試験と24 seed×3,000回の実ウィンドウ操作をメモリ違反・クラッシュ・ハングなしで完了する | `build_asan.bat` / `test_asan.ps1` |

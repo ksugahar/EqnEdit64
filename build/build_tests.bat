@@ -6,7 +6,7 @@ set "FUZZ_TIMEOUT_SECONDS=600"
 if not "%~1"=="" set "FUZZ_TIMEOUT_SECONDS=%~1"
 
 if /I not "%EQNEDIT64_ISOLATED_TEST_SESSION%"=="1" (
-    echo [ERROR] Full Eqnedit64 tests register and release a private math font.
+    echo [ERROR] Full EqnEdit64 tests register and release a private math font.
     echo [ERROR] Run them in a disposable CI/VM/user session and set
     echo [ERROR] EQNEDIT64_ISOLATED_TEST_SESSION=1 there.
     exit /b 90
@@ -21,4 +21,4 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File build\test_background.ps1 || exit 
 pwsh -NoProfile -ExecutionPolicy Bypass -File build\test_ui_fuzz.ps1 -TimeoutSeconds %FUZZ_TIMEOUT_SECONDS% || exit /b 1
 pwsh -Sta -NoProfile -ExecutionPolicy Bypass -File build\test_external_paste.ps1 || exit /b 1
 
-echo [OK] Eqnedit64 portable executable, background GUI fuzz, and external paste tests passed.
+echo [OK] EqnEdit64 portable executable, background GUI fuzz, and external paste tests passed.

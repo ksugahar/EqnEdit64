@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)] [string]$AppPath,
     [ValidateRange(2, 256)] [int]$Iterations = 32,
-    [string]$OutputPath = (Join-Path $env:TEMP 'Eqnedit64-font-session.json')
+    [string]$OutputPath = (Join-Path $env:TEMP 'EqnEdit64-font-session.json')
 )
 $ErrorActionPreference = 'Stop'
 if ($env:EQNEDIT64_ISOLATED_TEST_SESSION -ne '1') {

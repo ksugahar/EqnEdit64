@@ -1,5 +1,5 @@
 Eqnedit Math: modified Latin Modern Math derivative
-Maintainer of this derivative: Eqnedit64 / ksugahar
+Maintainer of this derivative: EqnEdit64 / ksugahar
 License: GUST Font License / LPPL, see GUST-FONT-LICENSE.txt.
 Upstream work: Latin Modern Math (GUST); original notices remain in the font.
 

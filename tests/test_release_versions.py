@@ -22,7 +22,7 @@ def test_generated_version_fields_and_single_source(tmp_path):
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, target)
     p = tmp_path / "python/pyproject.toml"
-    p.write_text(p.read_text(encoding="utf-8").replace('version = "3.1.7"', 'version = "4.5.6"'))
+    p.write_text(p.read_text(encoding="utf-8").replace(f'version = "{versions.version()}"', 'version = "4.5.6"', 1), encoding="utf-8")
     with pytest.raises(ValueError, match="Regenerate"):
         versions.generate(tmp_path, check=True)
     versions.generate(tmp_path)
@@ -81,17 +81,17 @@ def wheel(path, marker=None, target="metadata"):
         z.writestr("eqnedit64-3.1.7.dist-info/METADATA", metadata)
         z.writestr("eqnedit64/web/equation-editor.js", js)
         z.writestr("eqnedit64/web/equation-editor.fragment.html", html)
-        z.writestr("eqnedit64/Eqnedit64.exe", exe)
+        z.writestr("eqnedit64/EqnEdit64.exe", exe)
 
 
 def test_final_artifacts_and_api_names_are_accepted(tmp_path):
     p = tmp_path / "release.whl"
     wheel(p)
     gate.check(p, "3.1.7")
-    exe = tmp_path / "Eqnedit64.exe"
+    exe = tmp_path / "EqnEdit64.exe"
     exe.write_bytes(executable()+b"ImmGetCandidateListW")
     gate.check(exe, "3.1.7")
-    manifest = tmp_path / "Eqnedit64.release.json"
+    manifest = tmp_path / "EqnEdit64.release.json"
     manifest.write_text(json.dumps({"version":"3.1.7", "tag":"v3.1.7"}))
     gate.check(manifest, "3.1.7")
 
@@ -100,7 +100,7 @@ def test_final_artifacts_and_api_names_are_accepted(tmp_path):
 @pytest.mark.parametrize("target", ["metadata", "js", "html", "exe", "manifest"])
 def test_rejects_development_labels_in_each_publication_surface(tmp_path, marker, target):
     if target == "manifest":
-        path = tmp_path / "Eqnedit64.release.json"
+        path = tmp_path / "EqnEdit64.release.json"
         path.write_text(json.dumps({"version":f"3.1.7 {marker}", "tag":"v3.1.7"}))
     else:
         path = tmp_path / "release.whl"
@@ -162,14 +162,14 @@ def test_escaped_labels_in_js_and_decoded_json_fail(tmp_path):
         text = 'var BUILD = "3.1.7"; var pattern = /\\"/g; var label = "' + escaped + '";'
         with pytest.raises(ValueError):
             gate.web(text.encode("utf-8"), "equation-editor.js", "3.1.7")
-    path = tmp_path / "Eqnedit64.release.json"
+    path = tmp_path / "EqnEdit64.release.json"
     path.write_text(r'{"version":"3.1.7","tag":"v3.1.7","nested":[{"channel":"\u0063andidate"}]}', encoding="utf-8")
     with pytest.raises(ValueError):
         gate.check(path, "3.1.7")
 
 
 def test_pe_fixed_numeric_version_flags_and_extra_labels_fail(tmp_path):
-    exe = tmp_path / "Eqnedit64.exe"
+    exe = tmp_path / "EqnEdit64.exe"
     original = executable()
     signature = original.index(struct.pack("<I", 0xFEEF04BD))
     for offset, replacement in [(0, 0), (8, 0x00030009), (16, 0x00030009), (28, 2)]:

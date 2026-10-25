@@ -1,4 +1,4 @@
-"""Run the headless Eqnedit64 model suites in one Python process.
+"""Run the headless EqnEdit64 model suites in one Python process.
 
 Each process loads the embedded math font privately.  Keeping these suites in
 one host avoids needless register/unregister churn while preserving the same

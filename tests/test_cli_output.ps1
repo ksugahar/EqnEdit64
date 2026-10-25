@@ -21,7 +21,7 @@ function Invoke-EqneditCaptured {
     $stderr = $process.StandardError.ReadToEnd()
     if (-not $process.WaitForExit(10000)) {
         $process.Kill($true)
-        throw "Eqnedit64 CLI timed out: $($Arguments -join ' ')"
+        throw "EqnEdit64 CLI timed out: $($Arguments -join ' ')"
     }
     [pscustomobject]@{
         ExitCode = $process.ExitCode
@@ -32,7 +32,7 @@ function Invoke-EqneditCaptured {
 
 $help = Invoke-EqneditCaptured @('--help')
 if ($help.ExitCode -ne 0 -or
-    -not $help.Stdout.Contains('Eqnedit64.exe <入力> <出力>') -or
+    -not $help.Stdout.Contains('EqnEdit64.exe <入力> <出力>') -or
     -not $help.Stdout.Contains('clipboard-png') -or
     $help.Stderr) {
     throw "Redirected --help contract failed: $($help | ConvertTo-Json -Compress)"
@@ -52,7 +52,7 @@ if ($invalid.ExitCode -ne 94 -or $invalid.Stdout -or
     throw "Invalid-output diagnostic contract failed: $($invalid | ConvertTo-Json -Compress)"
 }
 
-Write-Host '[OK] Eqnedit64 CLI help, version, and errors are redirectable.'
+Write-Host '[OK] EqnEdit64 CLI help, version, and errors are redirectable.'
 foreach ($removed in @('--texclip', '--clipboard-tex-to-png',
     '--copy-tex', '--copy-tex-file', '--copy-google-slides', '--copy-google-slides-file',
     '--copy-png', '--copy-png-file', '--render-png', '--render-emf',

@@ -14,7 +14,7 @@ $directory = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $directory) { throw 'Use a fresh evidence directory.' }
 New-Item -ItemType Directory -Path $directory | Out-Null
 $env:EQNEDIT64_FONT_TRACE_DIR = $directory
-$app = (Resolve-Path $(if ($Arm -eq 'probe') { 'build_cmake/Release/font_lifecycle_probe.exe' } else { 'build_cmake/Release/Eqnedit64.exe' })).Path
+$app = (Resolve-Path $(if ($Arm -eq 'probe') { 'build_cmake/Release/font_lifecycle_probe.exe' } else { 'build_cmake/Release/EqnEdit64.exe' })).Path
 $session = (Get-Process -Id $PID).SessionId
 $started = Get-Date
 $result = [ordered]@{

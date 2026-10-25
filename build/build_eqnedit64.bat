@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-REM Build the native 64-bit Eqnedit64 application.
+REM Build the native 64-bit EqnEdit64 application.
 REM ASCII ONLY: cmd.exe reads batch files using the active ANSI code page.
 
 call "%~dp0select_vs2022.bat"
@@ -8,11 +8,11 @@ if errorlevel 1 exit /b 1
 
 cd /d "%~dp0.."
 pwsh -NoProfile -ExecutionPolicy Bypass -File build\stop_running_release.ps1
-if errorlevel 1 ( echo [ERROR] running Eqnedit64 cleanup failed & exit /b 1 )
+if errorlevel 1 ( echo [ERROR] running EqnEdit64 cleanup failed & exit /b 1 )
 python tools\release_version.py --check
 if errorlevel 1 ( echo [ERROR] release version generation failed & exit /b 1 )
 
-echo [INFO] building build\Eqnedit64.exe
+echo [INFO] building build\EqnEdit64.exe
 
 REM Stamp every binary with its exact source revision.
 set "STAMP=unknown"
@@ -28,45 +28,45 @@ for /f "usebackq delims=" %%D in (`pwsh -NoProfile -Command "(Get-Date).ToString
 >> src\build_stamp.h echo #define EQNEDIT64_BUILD_COMMIT "!STAMP!"
 >> src\build_stamp.h echo #define EQNEDIT64_BUILD_TIME "!BUILT!"
 
-rc /nologo /fo build\Eqnedit64.res src\eqnedit64.rc
-if errorlevel 1 ( echo [ERROR] Eqnedit64 resources failed & exit /b 1 )
+rc /nologo /fo build\EqnEdit64.res src\eqnedit64.rc
+if errorlevel 1 ( echo [ERROR] EqnEdit64 resources failed & exit /b 1 )
 
 cl /nologo /O2 /Zi /guard:cf /W4 /WX /w14062 /EHsc /MT /std:c++17 /utf-8 ^
    /D_CRT_SECURE_NO_WARNINGS /DUNICODE /D_UNICODE /I src ^
    /TP src\eqnedit64_app.cpp src\equation_edit.cpp src\equation_render.cpp ^
        src\tex_parser.cpp src\equation_node.cpp src\latex_emitter.cpp ^
        src\mathml_emitter.cpp src\office_html.cpp src\math_symbols.cpp src\palettes.cpp src\tex_document.cpp ^
-   /Fe:build\Eqnedit64.exe /Fo:build\ /Fd:build\Eqnedit64.pdb ^
+   /Fe:build\EqnEdit64.exe /Fo:build\ /Fd:build\EqnEdit64.pdb ^
    /link /SUBSYSTEM:WINDOWS /DEBUG:FULL /OPT:REF /OPT:ICF /guard:cf ^
-         /PDB:build\Eqnedit64.pdb /PDBALTPATH:Eqnedit64.pdb /MAP:build\Eqnedit64.map ^
+         /PDB:build\EqnEdit64.pdb /PDBALTPATH:EqnEdit64.pdb /MAP:build\EqnEdit64.map ^
          user32.lib gdi32.lib comctl32.lib comdlg32.lib shell32.lib ^
-         ole32.lib imm32.lib windowscodecs.lib build\Eqnedit64.res
-if errorlevel 1 ( echo [ERROR] Eqnedit64 build failed & exit /b 1 )
+         ole32.lib imm32.lib windowscodecs.lib build\EqnEdit64.res
+if errorlevel 1 ( echo [ERROR] EqnEdit64 build failed & exit /b 1 )
 
-if not exist build\Eqnedit64.exe (
-    echo [ERROR] build\Eqnedit64.exe was not produced
+if not exist build\EqnEdit64.exe (
+    echo [ERROR] build\EqnEdit64.exe was not produced
     exit /b 1
 )
-python tests\check_pe_debug.py build\Eqnedit64.exe
+python tests\check_pe_debug.py build\EqnEdit64.exe
 if errorlevel 1 ( echo [ERROR] public debug path check failed & exit /b 1 )
 
-python tools\check_release_versions.py --artifact build\Eqnedit64.exe --artifact web\equation-editor.js --artifact web\equation-editor.fragment.html
+python tools\check_release_versions.py --artifact build\EqnEdit64.exe --artifact web\equation-editor.js --artifact web\equation-editor.fragment.html
 if errorlevel 1 ( echo [ERROR] release version label check failed & exit /b 1 )
 
 REM Keep private symbols by source commit without adding them to the portable
 REM one-file distribution.  Crash dumps from that build can then be resolved.
 if not exist "symbols\!STAMP!" mkdir "symbols\!STAMP!"
-copy /Y build\Eqnedit64.pdb "symbols\!STAMP!\Eqnedit64.pdb" >nul
+copy /Y build\EqnEdit64.pdb "symbols\!STAMP!\EqnEdit64.pdb" >nul
 if errorlevel 1 ( echo [ERROR] PDB archive failed & exit /b 1 )
-copy /Y build\Eqnedit64.map "symbols\!STAMP!\Eqnedit64.map" >nul
+copy /Y build\EqnEdit64.map "symbols\!STAMP!\EqnEdit64.map" >nul
 if errorlevel 1 ( echo [ERROR] map archive failed & exit /b 1 )
 echo [OK] symbols\!STAMP! (PDB and map)
-echo [OK] build\Eqnedit64.exe (unsigned; separate controlled signing required)
+echo [OK] build\EqnEdit64.exe (unsigned; separate controlled signing required)
 
 if not exist dist mkdir dist
-copy /Y build\Eqnedit64.exe dist\Eqnedit64.exe >nul
+copy /Y build\EqnEdit64.exe dist\EqnEdit64.exe >nul
 if errorlevel 1 ( echo [ERROR] portable executable copy failed & exit /b 1 )
-echo [OK] dist\Eqnedit64.exe (portable release)
+echo [OK] dist\EqnEdit64.exe (portable release)
 
 cl /nologo /O2 /W4 /WX /w14062 /EHsc /MT /std:c++17 /utf-8 /I src ^
    /TP tests\test_tex_document.cpp src\tex_document.cpp ^

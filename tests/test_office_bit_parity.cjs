@@ -16,7 +16,7 @@ if (wire && (process.platform !== "win32" ||
              process.env.EQNEDIT64_ISOLATED_TEST_SESSION !== "1"))
   throw Error("Wire gate requires disposable Windows isolated host");
 if (wire && !app)
-  throw Error("Wire gate requires Eqnedit64 app path");
+  throw Error("Wire gate requires EqnEdit64 app path");
 const corpus = JSON.parse(
     fs.readFileSync(path.join(__dirname, "office_bit_corpus.json"), "utf8"));
 const contract315 = JSON.parse(fs.readFileSync(path.join(__dirname, "office_315_contract.json"), "utf8"));

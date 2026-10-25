@@ -1,4 +1,4 @@
-# Final, non-interactive Eqnedit64 release gate.
+# Final, non-interactive EqnEdit64 release gate.
 #
 # This is intentionally stricter than build_tests.bat: it adds ASan, the
 # extended real-window-procedure endurance run and release identity checks.
@@ -27,7 +27,7 @@ if ($EnduranceSeeds -ne 100 -or $EnduranceOps -ne 5000 -or $EnduranceTimeoutSeco
     throw 'Release gate requires 100 seeds, 5000 operations per seed and 1800 seconds'
 }
 if (-not $ReportPath) {
-    $ReportPath = Join-Path ([IO.Path]::GetTempPath()) 'Eqnedit64-final-acceptance.json'
+    $ReportPath = Join-Path ([IO.Path]::GetTempPath()) 'EqnEdit64-final-acceptance.json'
 }
 if ($env:EQNEDIT64_ISOLATED_TEST_SESSION -ne '1') {
     throw @'
@@ -36,8 +36,8 @@ Run it only in hosted CI or the approved isolated test session, then set EQNEDIT
 '@
 }
 $root = Split-Path -Parent $PSScriptRoot
-$buildExe = Join-Path $root 'build\Eqnedit64.exe'
-$distExe = Join-Path $root 'dist\Eqnedit64.exe'
+$buildExe = Join-Path $root 'build\EqnEdit64.exe'
+$distExe = Join-Path $root 'dist\EqnEdit64.exe'
 $started = Get-Date
 if ([IO.Path]::GetFullPath($ReportPath) -eq [IO.Path]::GetFullPath($CheckpointPath)) {
     throw 'Report and checkpoint must be separate files'
@@ -52,8 +52,8 @@ if ($Phase -eq 'Signed') {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing checkpoint input: $required" }
     }
     $releaseFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $distExe) -File)
-    if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -cne 'Eqnedit64.exe') {
-        throw 'dist must contain Eqnedit64.exe only'
+    if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -cne 'EqnEdit64.exe') {
+        throw 'dist must contain EqnEdit64.exe only'
     }
     # Hold both actual inputs against writes/replacement throughout trust and byte checks.
     $buildLock = [IO.File]::Open($buildExe, 'Open', 'Read', 'Read')
@@ -140,8 +140,8 @@ Invoke-PowerShellScript 'build\test_ui_fuzz.ps1' @(
     '-TimeoutSeconds', $EnduranceTimeoutSeconds)
 $enduranceTimer.Stop()
 
-$paintReport = (Join-Path $env:TEMP 'Eqnedit64-paint-benchmark.txt')
-$paintError = (Join-Path $env:TEMP 'Eqnedit64-paint-benchmark.err.txt')
+$paintReport = (Join-Path $env:TEMP 'EqnEdit64-paint-benchmark.txt')
+$paintError = (Join-Path $env:TEMP 'EqnEdit64-paint-benchmark.err.txt')
 $paint = Start-Process -FilePath $distExe -ArgumentList '--paint-bench' `
     -WindowStyle Hidden -Wait -PassThru `
     -RedirectStandardOutput $paintReport -RedirectStandardError $paintError
@@ -152,13 +152,13 @@ if ($paint.ExitCode -ne 0) {
 $paintMeasurements = Get-Content -LiteralPath $paintReport -Raw
 
 $releaseFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $distExe) -File)
-if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -cne 'Eqnedit64.exe') {
-    throw "dist must contain Eqnedit64.exe only: $($releaseFiles.Name -join ', ')"
+if ($releaseFiles.Count -ne 1 -or $releaseFiles[0].Name -cne 'EqnEdit64.exe') {
+    throw "dist must contain EqnEdit64.exe only: $($releaseFiles.Name -join ', ')"
 }
 $buildHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $buildExe).Hash
 $distHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $distExe).Hash
 if ($buildHash -ne $distHash) {
-    throw 'dist\Eqnedit64.exe is not the exact executable exercised by the gate.'
+    throw 'dist\EqnEdit64.exe is not the exact executable exercised by the gate.'
 }
 
 $stamp = Join-Path $root 'src\build_stamp.h'

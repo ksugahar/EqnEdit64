@@ -45,7 +45,7 @@ Publish the matching Web build on the laboratory homepage, even when the only
 Web source change is release identification. Do not claim public completion
 from a successful binary upload or from the browser tests alone.
 
-Eqnedit64.exe と Web/JS 数式エディタは、このリポジトリで一緒に
+EqnEdit64.exe と Web/JS 数式エディタは、このリポジトリで一緒に
 保守する同一製品系列である。研究室ホームページは Web 版の公開先であり、正本では
 ない。TeX を正本とし、次の優先順位を守る。
 
@@ -60,14 +60,14 @@ Eqnedit64.exe と Web/JS 数式エディタは、このリポジトリで一緒�
    - 挿入直後のTeXだけを強調し、説明文の暗記を要求しない。
    - GUIとTeXソースのどちらでも `Tab` / `Shift+Tab` により次／前の空欄へ
      移動でき、同じ手癖で式を埋められること。
-3. **Eqnedit64 の高速構造入力**
+3. **EqnEdit64 の高速構造入力**
    - 既存の構造入力ショートカットを基本層として維持し、削除・変更しない。
    - 基本ショートカットを削除・変更しない。追加ショートカットは拡張層として区別し、
      実キー経路をバックグラウンド試験する。
 
 ## 機能区分
 
-| 機能 | Eqnedit64.exe | Web/JS | 区分 |
+| 機能 | EqnEdit64.exe | Web/JS | 区分 |
 |---|---|---|---|
 | TeXを唯一の正本とする | 必須 | 必須 | 共通中核 |
 | MathML経由で編集可能なOffice数式へ貼り付け | inline 18 pt MathML + 18 pt NBSPのCF_HTML | 同じinline 18 pt MathML + 18 pt NBSPのCF_HTML | 共通中核 |
@@ -130,7 +130,7 @@ PowerPointの通常貼り付け受入試験は、画面外の一時プレゼン�
 - Web版の正本は `web/equation-editor.js` と
   `web/equation-editor.fragment.html`。ホームページへ置いたコピーを直接改変しない。
 - native変換器の公開境界はPythonを介さない
-  `Eqnedit64.exe INPUT OUTPUT`である。CLI dispatchをpybind11へ複製しない。Python
+  `EqnEdit64.exe INPUT OUTPUT`である。CLI dispatchをpybind11へ複製しない。Python
   packageのlauncherや補助関数は必要に応じて同じEXEをsubprocess実行する薄い利用者であり、
   CLIの正本ではない。Web版にnative CLIを移植しない。
 - 仕様、実装、自動試験を同じ変更で更新する。引き継ぎメモだけを規範にしない。

@@ -52,7 +52,7 @@ distinct, round-tripping mathematics. The existing distinct-rendering sweep
 still detects renderer fall-through; the font-cmap gate still detects missing
 button glyphs. Neither replaces semantic expectations.
 
-Run safe static and Web checks in the Ubuntu Eqnedit64 lane. Run native insertion
+Run safe static and Web checks in the Ubuntu EqnEdit64 lane. Run native insertion
 in the existing single-process model suite on disposable Windows CI, never on
 the interactive the shared session font session. These tests do not claim that Win32 pointer
 hit-testing or PowerPoint paste has been exercised.

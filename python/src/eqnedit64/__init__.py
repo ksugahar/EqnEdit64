@@ -1,4 +1,4 @@
-"""Python and native-command surfaces for Eqnedit64."""
+"""Python and native-command surfaces for EqnEdit64."""
 from __future__ import annotations
 
 from .eqnedit_core import (
@@ -39,4 +39,4 @@ __all__ = [
     "web_asset",
 ]
 
-__version__ = "3.1.7"
+__version__ = "3.1.8"

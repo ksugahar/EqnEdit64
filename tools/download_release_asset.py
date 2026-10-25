@@ -55,7 +55,7 @@ def fetch_release(repo, tag, source_sha):
     raise ValueError("Release pagination bound exceeded")
 
 def download(repo, tag, source_sha, name, destination, minimum):
-    if name not in {"Eqnedit64.exe", "Eqnedit64.release.json", "SHA256SUMS.txt"}:
+    if name not in {"EqnEdit64.exe", "EqnEdit64.release.json", "SHA256SUMS.txt"}:
         raise ValueError("Unexpected staged asset name")
     release = fetch_release(repo, tag, source_sha)
     assets = [a for a in release.get("assets", []) if a.get("name") == name]

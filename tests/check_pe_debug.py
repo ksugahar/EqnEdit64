@@ -28,7 +28,7 @@ def check(path):
         record = data[pointer:pointer + length]
         assert record[:4] == b"RSDS", "Unsupported CodeView record"
         name = record[24:].split(b"\0", 1)[0].decode("utf-8")
-        assert name == "Eqnedit64.pdb", "Public PDB path must be the product basename"
+        assert name == "EqnEdit64.pdb", "Public PDB path must be the product basename"
         names.append(name)
     assert names, "No CodeView record"
     print("PASS: PE debug basename")

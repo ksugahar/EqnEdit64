@@ -25,7 +25,7 @@ foreach(required
         "${EQNEDIT64_ASSETS}/eqnedit-math.ttf"
         "${EQNEDIT64_ROOT}/web/equation-editor.js")
     if(NOT EXISTS "${required}")
-        message(FATAL_ERROR "canonical Eqnedit64 source is missing: ${required}")
+        message(FATAL_ERROR "canonical EqnEdit64 source is missing: ${required}")
     endif()
 endforeach()
 
@@ -68,11 +68,11 @@ install(TARGETS eqnedit_core
 
 if(NOT DEFINED ENV{EQNEDIT64_RELEASE_EXE})
     message(FATAL_ERROR
-        "EQNEDIT64_RELEASE_EXE must name the Eqnedit64.exe to package")
+        "EQNEDIT64_RELEASE_EXE must name the EqnEdit64.exe to package")
 endif()
 file(TO_CMAKE_PATH "$ENV{EQNEDIT64_RELEASE_EXE}" EQNEDIT64_RELEASE_EXE)
 if(NOT EXISTS "${EQNEDIT64_RELEASE_EXE}")
-    message(FATAL_ERROR "Eqnedit64 release executable is missing: ${EQNEDIT64_RELEASE_EXE}")
+    message(FATAL_ERROR "EqnEdit64 release executable is missing: ${EQNEDIT64_RELEASE_EXE}")
 endif()
 install(FILES "${EQNEDIT64_RELEASE_EXE}" DESTINATION eqnedit64)
 install(FILES
