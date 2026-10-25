@@ -22,7 +22,7 @@ def test_generated_version_fields_and_single_source(tmp_path):
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, target)
     p = tmp_path / "python/pyproject.toml"
-    p.write_text(p.read_text(encoding="utf-8").replace('version = "3.1.7"', 'version = "4.5.6"'))
+    p.write_text(p.read_text(encoding="utf-8").replace(f'version = "{versions.version()}"', 'version = "4.5.6"', 1), encoding="utf-8")
     with pytest.raises(ValueError, match="Regenerate"):
         versions.generate(tmp_path, check=True)
     versions.generate(tmp_path)
