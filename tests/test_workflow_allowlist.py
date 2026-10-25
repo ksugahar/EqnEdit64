@@ -4,8 +4,20 @@ from pathlib import Path
 import pytest
 import yaml
 
+class UniqueBaseLoader(yaml.BaseLoader):
+    """Reject ambiguous mapping keys before comparing the execution context."""
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise ValueError('Duplicate YAML mapping key')
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
+
+
 ROOT = Path(__file__).resolve().parents[1]
-ALLOW = yaml.load((ROOT / 'tests/fixtures/release-run-allowlist.yml').read_text('utf-8'), Loader=yaml.BaseLoader)
+ALLOW = yaml.load((ROOT / 'tests/fixtures/release-run-allowlist.yml').read_text('utf-8'), Loader=UniqueBaseLoader)
 
 
 def normalize(text):
@@ -36,11 +48,13 @@ def no_global_context(data):
 
 def release_contract(data):
     no_global_context(data)
+    assert normalized_context({k:v for k,v in data.items() if k != 'jobs'}) == normalized_context(ALLOW['release_top_level']), 'Release top-level context differs'
     assert normalized_context(data['jobs']) == normalized_context(ALLOW['release_jobs']), 'Release jobs/steps differ from the reviewed execution context'
 
 
 def preflight_contract(data):
     no_global_context(data)
+    assert normalized_context({k:v for k,v in data.items() if k != 'jobs'}) == normalized_context(ALLOW['preflight_top_level']), 'CI top-level context differs'
     job = data['jobs']['build-test']
     assert normalized_context({k:v for k,v in job.items() if k != 'steps'}) == normalized_context(ALLOW['preflight_job_context']), 'Preflight job context differs'
     steps = [s for s in job['steps'] if s.get('name') == 'Verify actual cp312 wheel naming before installation']
@@ -49,7 +63,7 @@ def preflight_contract(data):
 
 
 def load(filename):
-    return yaml.load((ROOT / '.github/workflows' / filename).read_text('utf-8'), Loader=yaml.BaseLoader)
+    return yaml.load((ROOT / '.github/workflows' / filename).read_text('utf-8'), Loader=UniqueBaseLoader)
 
 
 def test_reviewed_workflows_pass_exact_allowlists():
@@ -111,3 +125,32 @@ def test_execution_context_bypasses_rejected_and_restored(kind):
     else: step['working-directory'] = './other'
     with pytest.raises(AssertionError): contract(data)
     contract(original)
+
+
+@pytest.mark.parametrize('filename,contract', [('release-eqnedit64-pypi.yml', release_contract),
+                                               ('eqnedit64.yml', preflight_contract)])
+@pytest.mark.parametrize('kind', ['oidc', 'write-all', 'concurrency', 'trigger', 'input'])
+def test_top_level_changes_rejected_and_restored(filename, contract, kind):
+    original = load(filename)
+    contract(original)
+    data = copy.deepcopy(original)
+    if kind == 'oidc': data['permissions']['id-token'] = 'write'
+    elif kind == 'write-all': data['permissions'] = 'write-all'
+    elif kind == 'concurrency': data['concurrency']['group'] = 'other'
+    elif kind == 'trigger': data['on']['push'] = {'branches': ['other']}
+    else: data['on']['workflow_dispatch'] = {'inputs': {'extra': {'type': 'string'}}}
+    with pytest.raises(AssertionError): contract(data)
+    contract(original)
+
+
+@pytest.mark.parametrize('text', ['run: echo checked\nrun: exit 0\n',
+    'permissions:\n  contents: read\n  contents: write\n',
+    "'on':\n  workflow_dispatch: {}\n'on':\n  push: {}\n"])
+def test_duplicate_yaml_keys_fail_closed(text):
+    with pytest.raises(ValueError, match='Duplicate YAML mapping key'):
+        yaml.load(text, Loader=UniqueBaseLoader)
+
+
+def test_strict_loader_preserves_literal_on_key():
+    data = yaml.load("'on':\n  workflow_dispatch: {}\n", Loader=UniqueBaseLoader)
+    assert set(data) == {'on'} and set(data['on']) == {'workflow_dispatch'}

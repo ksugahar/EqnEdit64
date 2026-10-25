@@ -397,3 +397,40 @@ preflight_step:
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     '
+release_top_level:
+  name: Release EqnEdit64 to PyPI
+  'on':
+    workflow_dispatch:
+      inputs:
+        expected_source_sha:
+          description: Exact qualified full source SHA
+          required: 'true'
+          type: string
+        ci_run_id:
+          description: Successful tag CI run ID
+          required: 'true'
+          type: string
+  permissions:
+    actions: read
+    contents: read
+  concurrency:
+    group: eqnedit64-release-${{ github.ref }}
+    cancel-in-progress: 'false'
+preflight_top_level:
+  name: EqnEdit64
+  permissions:
+    contents: read
+    actions: read
+  concurrency:
+    group: eqnedit64-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  'on':
+    push:
+      branches:
+      - main
+      tags:
+      - v*
+    pull_request:
+      branches:
+      - main
+    workflow_dispatch: {}
