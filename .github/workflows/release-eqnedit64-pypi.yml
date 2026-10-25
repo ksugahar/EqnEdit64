@@ -1,66 +1,61 @@
 name: Release EqnEdit64 to PyPI
 'on':
-  workflow_run:
-    workflows:
-    - EqnEdit64
-    types:
-    - completed
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Exact qualified full source SHA
+        required: true
+        type: string
+      ci_run_id:
+        description: Successful tag CI run ID
+        required: true
+        type: string
 permissions:
   actions: read
   contents: read
 jobs:
   qualify:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+      CI_RUN_ID: ${{ inputs.ci_run_id }}
+      GH_TOKEN: ${{ github.token }}
     outputs:
       eligible: ${{ steps.context.outputs.eligible }}
       sha: ${{ steps.context.outputs.sha }}
       tag: ${{ steps.context.outputs.tag }}
     steps:
+    - name: Reject non-tag dispatch before checkout or API access
+      run: |
+        python3 - <<'PY'
+        import os, re
+        assert os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'
+        assert os.environ['GITHUB_REF_TYPE'] == 'tag'
+        assert re.fullmatch(r'refs/tags/v[0-9]+\.[0-9]+\.[0-9]+', os.environ['GITHUB_REF'])
+        assert re.fullmatch(r'[0-9a-f]{40}', os.environ['EXPECTED_SOURCE_SHA'])
+        assert os.environ['GITHUB_SHA'] == os.environ['EXPECTED_SOURCE_SHA']
+        assert re.fullmatch(r'[1-9][0-9]*', os.environ['CI_RUN_ID'])
+        PY
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ github.sha }}
+        persist-credentials: false
+    - name: Verify exact tag and successful CI metadata before artifact download
+      run: python3 tools/qualify_release.py --report qualification-api.json
     - name: Download exact EqnEdit64 CI ref context
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: eqnedit64-ci-release-context
         path: eqnedit64-ci-release-context
-        run-id: ${{ github.event.workflow_run.id }}
+        run-id: ${{ inputs.ci_run_id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Verify triggering CI ran on an EqnEdit64 release tag
+    - name: Bind exact CI context and package version to actual tag
       id: context
-      env:
-        SHA: ${{ github.event.workflow_run.head_sha }}
-        RUN_ID: ${{ github.event.workflow_run.id }}
       run: |
-        python3 - <<'PY'
-        import json
-        import os
-        import pathlib
-        import re
-        import sys
-
-        context = json.loads(pathlib.Path(
-            "eqnedit64-ci-release-context/context.json"
-        ).read_text(encoding="utf-8"))
-        if context.get("schema") != "eqnedit64.ci-release-context.v1":
-            print("::error::Unknown EqnEdit64 CI release-context schema")
-            sys.exit(1)
-        if (context.get("repository") != os.environ["GITHUB_REPOSITORY"] or
-                context.get("sha") != os.environ["SHA"] or
-                str(context.get("run_id")) != os.environ["RUN_ID"]):
-            print("::error::EqnEdit64 CI context does not match workflow_run")
-            sys.exit(1)
-
-        ref = context.get("ref", "")
-        tag = ref.removeprefix("refs/tags/")
-        eligible = (
-            context.get("ref_type") == "tag" and
-            re.fullmatch(r"v\d+\.\d+\.\d+", tag) is not None
-        )
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-            output.write(f"eligible={str(eligible).lower()}\n")
-            output.write(f"sha={context['sha']}\n")
-            output.write(f"tag={tag if eligible else ''}\n")
-        print(f"EqnEdit64 CI ref: {ref} (eligible={eligible})")
-        PY
+        python3 tools/release_version.py --check
+        test "$GITHUB_REF" = "refs/tags/v$(python3 tools/release_version.py --print-version)"
+        python3 tools/qualify_release.py --context eqnedit64-ci-release-context/context.json --report qualification.json --output "$GITHUB_OUTPUT"
   # Signed assets are staged separately; this hosted job only verifies them
   signed-standalone:
     needs: qualify
@@ -163,6 +158,15 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $releaseRoot = Join-Path $env:RUNNER_TEMP 'eqnedit64-draft'
         python tools/check_release_versions.py --artifact "$releaseRoot/EqnEdit64.exe" --artifact "$releaseRoot/EqnEdit64.release.json" --artifact web/equation-editor.js --artifact web/equation-editor.fragment.html
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Verify final draft title notes and exact three assets before approval
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EQNEDIT64_TAG: ${{ needs.qualify.outputs.tag }}
+        EQNEDIT64_SHA: ${{ needs.qualify.outputs.sha }}
+      run: |
+        python tools/verify_draft_assets.py --repo $env:GITHUB_REPOSITORY --tag $env:EQNEDIT64_TAG --source-sha $env:EQNEDIT64_SHA --artifact-dir "$env:RUNNER_TEMP/eqnedit64-signed-standalone" --output $env:GITHUB_OUTPUT
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Upload exact signed standalone artifact
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -285,11 +289,50 @@ jobs:
         name: eqnedit64-wheel-${{ matrix.python-version }}
         path: python/dist/*.whl
         if-no-files-found: error
+  audit-wheels:
+    needs: [qualify, signed-standalone, build-wheels]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ needs.qualify.outputs.sha }}
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: '3.12'
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        pattern: eqnedit64-wheel-*
+        path: dist
+        merge-multiple: true
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: eqnedit64-signed-standalone
+        path: standalone
+    - name: Bind all four wheels before requesting human approval
+      env:
+        EQNEDIT64_TAG: ${{ needs.qualify.outputs.tag }}
+        EQNEDIT64_SHA: ${{ needs.qualify.outputs.sha }}
+      run: |
+        python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version "${EQNEDIT64_TAG#v}" --source-sha "$EQNEDIT64_SHA" --report wheel-audit.json
+        args=(--artifact standalone/EqnEdit64.exe --artifact standalone/EqnEdit64.release.json)
+        for wheel in dist/*.whl; do args+=(--artifact "$wheel"); done
+        python tools/check_release_versions.py "${args[@]}"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: eqnedit64-preapproval-audit
+        path: wheel-audit.json
+        if-no-files-found: error
   publish:
     needs:
     - qualify
     - signed-standalone
     - build-wheels
+    - audit-wheels
     runs-on: ubuntu-24.04
     environment: pypi
     permissions:
@@ -313,6 +356,28 @@ jobs:
       with:
         name: eqnedit64-signed-standalone
         path: standalone
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: eqnedit64-preapproval-audit
+        path: preapproval
+    - name: Recheck actual tag CI and context after human approval
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_SOURCE_SHA: ${{ needs.qualify.outputs.sha }}
+        CI_RUN_ID: ${{ inputs.ci_run_id }}
+      run: python tools/qualify_release.py --report postapproval-qualification.json
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: eqnedit64-ci-release-context
+        path: eqnedit64-ci-release-context
+        run-id: ${{ inputs.ci_run_id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Recheck downloaded CI tag context after approval
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_SOURCE_SHA: ${{ needs.qualify.outputs.sha }}
+        CI_RUN_ID: ${{ inputs.ci_run_id }}
+      run: python tools/qualify_release.py --context eqnedit64-ci-release-context/context.json --report postapproval-context.json
     - name: Verify all draft assets before any publication
       id: draft
       env:
@@ -334,7 +399,7 @@ jobs:
         EQNEDIT64_TAG: ${{ needs.qualify.outputs.tag }}
         EQNEDIT64_SHA: ${{ needs.qualify.outputs.sha }}
       run: |
-        python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version "${EQNEDIT64_TAG#v}" --source-sha "$EQNEDIT64_SHA"
+        python tools/check_release_wheels.py --wheel-dir dist --standalone standalone/EqnEdit64.exe --version "${EQNEDIT64_TAG#v}" --source-sha "$EQNEDIT64_SHA" --verify-report preapproval/wheel-audit.json
     # gh-action-pypi-publish v1.14.3 (composite); retain the exact reviewed reference.
     - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
       with:
@@ -349,5 +414,5 @@ jobs:
         printf '%s' '{"draft":false,"prerelease":false,"make_latest":"true"}' |
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$DRAFT_RELEASE_ID" --input - > /dev/null
 concurrency:
-  group: eqnedit64-release-${{ github.event.workflow_run.head_sha }}
+  group: eqnedit64-release-${{ github.ref }}
   cancel-in-progress: false

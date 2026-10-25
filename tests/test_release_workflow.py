@@ -53,7 +53,7 @@ def test_hosted_runtime_and_artifact_transport_contracts():
                    if s.get("uses", "").startswith("actions/download-artifact@"))["with"]
     assert context["name"] == "eqnedit64-ci-release-context"
     assert context["path"] == "eqnedit64-ci-release-context"
-    assert context["run-id"] == "${{ github.event.workflow_run.id }}"
+    assert context["run-id"] == "${{ inputs.ci_run_id }}"
     assert context["github-token"] == "${{ secrets.GITHUB_TOKEN }}"
     downloads = [s["with"] for s in jobs["publish"]["steps"]
                  if s.get("uses", "").startswith("actions/download-artifact@")]
@@ -179,3 +179,15 @@ def test_release_metadata_accepts_final_notes_and_wheel_gate_precedes_upload():
     assert gate < upload and not steps[gate].get("if")
     matrix_gate = next(s for s in jobs["build-wheels"]["steps"] if "check_release_wheels.py" in s.get("run", ""))
     assert '--python-version "${{ matrix.python-version }}"' in matrix_gate["run"]
+
+
+@pytest.mark.parametrize("body", ["unpublished", "not-published", "release candidate", "pre-release", "未公開", "下書き"])
+def test_reviewer_unfinished_wording_rejected(body):
+    with pytest.raises(ValueError):
+        verifier().validate_release_metadata({"name": "EqnEdit64 3.1.8", "body": "EqnEdit64 3.1.8 " + body}, "3.1.8")
+
+
+def test_reviewer_version_sentence_boundary():
+    verifier().validate_release_metadata({"name": "EqnEdit64 3.1.8", "body": "EqnEdit64 3.1.8. Signed standalone executable and Windows Python wheels."}, "3.1.8")
+    for body in ("EqnEdit64 3.1.80", "EqnEdit64 3.1.8.1"):
+        with pytest.raises(ValueError): verifier().validate_release_metadata({"name": "EqnEdit64 3.1.8", "body": body}, "3.1.8")

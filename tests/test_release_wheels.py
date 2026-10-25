@@ -19,10 +19,13 @@ WEB = {name: b"canonical web bytes\n" for name in gate.WEB}
 
 def make_wheel(folder, abi, change=None):
     info = "eqnedit64-3.1.7.dist-info/"
-    members = {"eqnedit64/EqnEdit64.exe": EXE,
+    meta = "\n".join(f"{key}: {value}" for key, values in gate.expected_metadata("3.1.7").items() for value in values)
+    meta = (meta + "\n\n" + (ROOT / "python/README.md").read_text("utf-8")).encode("utf-8")
+    fixed, extension = gate.expected_files(info, abi)
+    members = {**fixed, extension: b"synthetic native extension", "eqnedit64/EqnEdit64.exe": EXE,
                **{"eqnedit64/web/" + n: v for n, v in WEB.items()},
-               info + "METADATA": b"Name: EqnEdit64\nVersion: 3.1.7\n",
-               info + "WHEEL": f"Wheel-Version: 1.0\nTag: {abi}-{abi}-win_amd64\n".encode()}
+               info + "METADATA": meta,
+               info + "WHEEL": f"Wheel-Version: 1.0\nGenerator: scikit-build-core 1.1.1\nRoot-Is-Purelib: false\nTag: {abi}-{abi}-win_amd64\n".encode()}
     if change:
         change(members)
     rows = []
@@ -81,3 +84,34 @@ def test_windows_checkout_preserves_canonical_web_bytes(tmp_path):
         expected = subprocess.check_output(["git", "-C", str(ROOT), "cat-file", "blob", "HEAD:web/" + name])
         assert actual == expected, name
         assert b"\r" not in actual, name
+
+
+@pytest.mark.parametrize("kind", ["url", "license", "python", "pure", "extra"])
+def test_reviewer_metadata_and_member_bypasses_rejected(tmp_path, kind):
+    def change(m):
+        meta = "eqnedit64-3.1.7.dist-info/METADATA"
+        wheel = "eqnedit64-3.1.7.dist-info/WHEEL"
+        if kind == "url":
+            m[meta] = m[meta].replace(b"https://github.com/ksugahar/EqnEdit64", b"https://example.invalid/other")
+        elif kind == "license":
+            m[meta] = b"\n".join(line for line in m[meta].split(b"\n") if not line.startswith(b"License-Expression:"))
+        elif kind == "python":
+            m[meta] = b"\n".join(line for line in m[meta].split(b"\n") if not line.startswith(b"Requires-Python:"))
+        elif kind == "pure": m[wheel] = m[wheel].replace(b"Root-Is-Purelib: false", b"Root-Is-Purelib: true")
+        else: m["eqnedit64/old/EqnEdit64.exe"] = b"unexpected"
+    wheel = make_wheel(tmp_path, "cp310", change)
+    with pytest.raises(ValueError): gate.verify([wheel], EXE, "3.1.7", WEB, ("3.10",))
+
+
+def test_postapproval_report_detects_changed_bytes(tmp_path):
+    standalone = tmp_path / "standalone"
+    standalone.mkdir()
+    for name in ("EqnEdit64.exe", "EqnEdit64.release.json", "SHA256SUMS.txt"):
+        (standalone / name).write_bytes(b"synthetic")
+    wheels = tmp_path / "wheels"; wheels.mkdir()
+    make_wheel(wheels, "cp310")
+    args = ({"wheels": 1}, wheels, standalone / "EqnEdit64.exe", "a"*40, "3.1.7")
+    report = gate.bind_report(*args)
+    assert gate.bind_report(*args, previous=report) == report
+    (standalone / "SHA256SUMS.txt").write_bytes(b"changed")
+    with pytest.raises(ValueError, match="pre-approval"): gate.bind_report(*args, previous=report)

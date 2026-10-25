@@ -38,35 +38,6 @@ def test_native_corpus_contract_is_complete():
     assert len(combined) - len(rejected) == 76
 
 
-def test_release_context_rejects_cross_repository_and_source_mismatch(tmp_path):
-    import json
-    import os
-    import subprocess
-    import sys
-    import yaml
-    workflow = yaml.safe_load((ROOT / ".github/workflows/release-eqnedit64-pypi.yml").read_text("utf-8"))
-    step = next(s for s in workflow["jobs"]["qualify"]["steps"] if s.get("id") == "context")
-    source = step["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
-    context_dir = tmp_path / "eqnedit64-ci-release-context"
-    context_dir.mkdir()
-    good = {"schema": "eqnedit64.ci-release-context.v1", "repository": "example/editor", "sha": "a" * 40,
-            "run_id": "42", "ref": "refs/tags/v3.1.6", "ref_type": "tag"}
-    environment = dict(os.environ, SHA=good["sha"], RUN_ID="42", GITHUB_REPOSITORY=good["repository"])
-    for index, (patch, expected_code, eligible) in enumerate([
-        ({}, 0, True), ({"repository": "example/another"}, 1, None),
-        ({"sha": "b" * 40}, 1, None), ({"run_id": "43"}, 1, None),
-        ({"schema": "invalid"}, 1, None), ({"ref": "refs/heads/main", "ref_type": "branch"}, 0, False),
-        ({"ref": "refs/tags/not-a-version"}, 0, False),
-    ]):
-        (context_dir / "context.json").write_text(json.dumps(dict(good, **patch)), encoding="utf-8")
-        output = tmp_path / f"output-{index}"
-        result = subprocess.run([sys.executable, "-c", source], cwd=tmp_path,
-                                env=dict(environment, GITHUB_OUTPUT=str(output)), capture_output=True, text=True)
-        assert result.returncode == expected_code, result.stdout + result.stderr
-        if eligible is not None:
-            assert f"eligible={str(eligible).lower()}" in output.read_text("utf-8")
-
-
 def _draft_module():
     import importlib.util
     spec = importlib.util.spec_from_file_location("draft_assets", ROOT / "tools/download_release_asset.py")

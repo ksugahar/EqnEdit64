@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 from download_release_asset import API, fetch_release, request
+from check_release_versions import MARKER, clean
 
 ASSETS = {"EqnEdit64.exe", "EqnEdit64.release.json", "SHA256SUMS.txt"}
 
@@ -12,10 +13,13 @@ def validate_release_metadata(release, version):
     if release.get("name") != f"EqnEdit64 {version}":
         raise ValueError("Release title must match the exact product version")
     body = release.get("body")
-    if not isinstance(body, str) or not body.strip() or not re.search(r"(?<![0-9.])" + re.escape(version) + r"(?![0-9.])", body):
+    if not isinstance(body, str) or not body.strip() or not re.search(r"(?<![0-9.])" + re.escape(version) + r"(?![0-9A-Za-z]|\.[0-9])", body):
         raise ValueError("Final release notes must include the exact version")
-    if re.search(r"draft|staging|not\s+published", body, re.IGNORECASE):
+    if any(MARKER.search(text) or re.search(r"draft|staging|unpublished|not[\s-]*published|pre[\s-]*release|下書き", text, re.I)
+           for text in (release["name"], body)):
         raise ValueError("Release notes still describe an unpublished draft")
+    for text in (release["name"], body):
+        clean(text, "release title/notes")
 
 
 def verify(repo, tag, source_sha, artifact_dir):
