@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -105,6 +106,13 @@ def publication_sequence_contract(data):
     """Required approval boundary checks must execute unconditionally in order."""
     jobs = data["jobs"]
     steps = jobs["publish"]["steps"]
+    for job in jobs.values():
+        assert str(job.get("continue-on-error", "false")).lower() == "false", "Release jobs must fail closed"
+        assert not re.search(r"always\s*\(", str(job.get("if", "")), re.I), "Release jobs must not bypass dependency failures"
+
+    def strict(step):
+        assert str(step.get("continue-on-error", "false")).lower() == "false", "Mandatory checks must fail closed"
+        assert not re.search(r"\|\|\s*true\b", step.get("run", ""), re.I), "Mandatory checks must preserve errors"
     selectors = [
         lambda s: "--report postapproval-qualification.json" in s.get("run", ""),
         lambda s: s.get("uses", "").startswith("actions/download-artifact@") and s.get("with", {}).get("name") == "eqnedit64-ci-release-context",
@@ -120,6 +128,7 @@ def publication_sequence_contract(data):
         assert len(matches) == 1, "Missing or ambiguous mandatory publication check"
         i = matches[0]
         assert "if" not in steps[i], "Mandatory publication checks must not be conditional"
+        strict(steps[i])
         positions.append(i)
     assert positions == sorted(positions), "Publication checks must precede upload in approval order"
     context = steps[positions[1]]["with"]
@@ -130,6 +139,7 @@ def publication_sequence_contract(data):
     uploads = [i for i, s in enumerate(signed) if s.get("uses", "").startswith("actions/upload-artifact@")]
     assert len(checks) == 1 and uploads and checks[0] < min(uploads), "Draft checks must run before approval"
     assert "if" not in signed[checks[0]], "Pre-approval draft check must be unconditional"
+    strict(signed[checks[0]])
 
 
 def test_publication_sequence_guards_cannot_be_removed_or_skipped():
@@ -137,7 +147,7 @@ def test_publication_sequence_guards_cannot_be_removed_or_skipped():
     publication_sequence_contract(data)
 
 
-@pytest.mark.parametrize("mutation", ["tag-check", "context-check", "draft-skip", "skip-existing"])
+@pytest.mark.parametrize("mutation", ["tag-check", "context-check", "draft-skip", "skip-existing", "continue-error", "ignore-error", "always-job"])
 def test_required_publication_guard_mutations_fail(mutation):
     data = yaml.load((ROOT / ".github/workflows/release-eqnedit64-pypi.yml").read_text("utf-8"), Loader=yaml.BaseLoader)
     steps = data["jobs"]["publish"]["steps"]
@@ -147,6 +157,15 @@ def test_required_publication_guard_mutations_fail(mutation):
     elif mutation == "draft-skip":
         check = next(s for s in data["jobs"]["signed-standalone"]["steps"] if "verify_draft_assets.py" in s.get("run", ""))
         check["if"] = "false"
+    elif mutation == "continue-error":
+        steps[0]["continue-on-error"] = "true"
+        # Select a mandatory post-approval qualification step.
+        next(s for s in steps if "--report postapproval-qualification.json" in s.get("run", ""))["continue-on-error"] = "true"
+    elif mutation == "ignore-error":
+        check = next(s for s in steps if "--report postapproval-qualification.json" in s.get("run", ""))
+        check["run"] += " || true"
+    elif mutation == "always-job":
+        data["jobs"]["publish"]["if"] = "always()"
     else:
         upload = next(s for s in steps if s.get("uses", "").startswith("pypa/"))
         upload["with"]["skip-existing"] = "true"
