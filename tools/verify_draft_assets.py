@@ -15,7 +15,7 @@ def validate_release_metadata(release, version):
     body = release.get("body")
     if not isinstance(body, str) or not body.strip() or not re.search(r"(?<![0-9.])" + re.escape(version) + r"(?![0-9A-Za-z]|\.[0-9])", body):
         raise ValueError("Final release notes must include the exact version")
-    if any(MARKER.search(text) or re.search(r"draft|staging|unpublished|not[\s-]*published|pre[\s-]*release|下書き", text, re.I)
+    if any(MARKER.search(text) or re.search(r"draft|staging|unpublished|not[\s-]*published|not\s+yet\s+published|yet\s+to\s+be\s+published|pre[\s-]*release|下書き|ドラフト|ステージング|非公開", text, re.I)
            for text in (release["name"], body)):
         raise ValueError("Release notes still describe an unpublished draft")
     for text in (release["name"], body):

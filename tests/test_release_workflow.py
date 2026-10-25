@@ -181,7 +181,8 @@ def test_release_metadata_accepts_final_notes_and_wheel_gate_precedes_upload():
     assert '--python-version "${{ matrix.python-version }}"' in matrix_gate["run"]
 
 
-@pytest.mark.parametrize("body", ["unpublished", "not-published", "release candidate", "pre-release", "未公開", "下書き"])
+@pytest.mark.parametrize("body", ["unpublished", "not-published", "release candidate", "pre-release", "未公開", "下書き",
+                                  "ドラフト", "ステージング", "非公開", "not yet published", "yet to be published"])
 def test_reviewer_unfinished_wording_rejected(body):
     with pytest.raises(ValueError):
         verifier().validate_release_metadata({"name": "EqnEdit64 3.1.8", "body": "EqnEdit64 3.1.8 " + body}, "3.1.8")

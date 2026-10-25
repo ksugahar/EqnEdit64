@@ -99,3 +99,56 @@ def test_workflow_preserves_tag_context_and_preapproval_audit():
     assert "workflow_run" not in text and "pending_deployments" not in text
     assert "--verify-report preapproval/wheel-audit.json" in text
     assert data["concurrency"] == {"group": "eqnedit64-release-${{ github.ref }}", "cancel-in-progress": "false"}
+
+
+def publication_sequence_contract(data):
+    """Required approval boundary checks must execute unconditionally in order."""
+    jobs = data["jobs"]
+    steps = jobs["publish"]["steps"]
+    selectors = [
+        lambda s: "--report postapproval-qualification.json" in s.get("run", ""),
+        lambda s: s.get("uses", "").startswith("actions/download-artifact@") and s.get("with", {}).get("name") == "eqnedit64-ci-release-context",
+        lambda s: "--context eqnedit64-ci-release-context/context.json" in s.get("run", ""),
+        lambda s: "verify_draft_assets.py" in s.get("run", ""),
+        lambda s: "--verify-report" in s.get("run", ""),
+        lambda s: s.get("uses", "").startswith("pypa/gh-action-pypi-publish@"),
+        lambda s: 'gh api --method PATCH' in s.get("run", ""),
+    ]
+    positions = []
+    for select in selectors:
+        matches = [i for i, step in enumerate(steps) if select(step)]
+        assert len(matches) == 1, "Missing or ambiguous mandatory publication check"
+        i = matches[0]
+        assert "if" not in steps[i], "Mandatory publication checks must not be conditional"
+        positions.append(i)
+    assert positions == sorted(positions), "Publication checks must precede upload in approval order"
+    context = steps[positions[1]]["with"]
+    assert context["run-id"] == "${{ inputs.ci_run_id }}", "Recheck must download the qualified CI context"
+    assert steps[positions[5]]["with"].get("skip-existing") == "false", "Existing releases must fail closed"
+    signed = jobs["signed-standalone"]["steps"]
+    checks = [i for i, s in enumerate(signed) if "verify_draft_assets.py" in s.get("run", "")]
+    uploads = [i for i, s in enumerate(signed) if s.get("uses", "").startswith("actions/upload-artifact@")]
+    assert len(checks) == 1 and uploads and checks[0] < min(uploads), "Draft checks must run before approval"
+    assert "if" not in signed[checks[0]], "Pre-approval draft check must be unconditional"
+
+
+def test_publication_sequence_guards_cannot_be_removed_or_skipped():
+    data = yaml.load((ROOT / ".github/workflows/release-eqnedit64-pypi.yml").read_text("utf-8"), Loader=yaml.BaseLoader)
+    publication_sequence_contract(data)
+
+
+@pytest.mark.parametrize("mutation", ["tag-check", "context-check", "draft-skip", "skip-existing"])
+def test_required_publication_guard_mutations_fail(mutation):
+    data = yaml.load((ROOT / ".github/workflows/release-eqnedit64-pypi.yml").read_text("utf-8"), Loader=yaml.BaseLoader)
+    steps = data["jobs"]["publish"]["steps"]
+    if mutation in {"tag-check", "context-check"}:
+        token = "--report postapproval-qualification.json" if mutation == "tag-check" else "--context eqnedit64-ci-release-context/context.json"
+        steps[:] = [s for s in steps if token not in s.get("run", "")]
+    elif mutation == "draft-skip":
+        check = next(s for s in data["jobs"]["signed-standalone"]["steps"] if "verify_draft_assets.py" in s.get("run", ""))
+        check["if"] = "false"
+    else:
+        upload = next(s for s in steps if s.get("uses", "").startswith("pypa/"))
+        upload["with"]["skip-existing"] = "true"
+    with pytest.raises(AssertionError):
+        publication_sequence_contract(data)
